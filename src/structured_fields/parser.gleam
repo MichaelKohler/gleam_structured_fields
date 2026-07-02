@@ -10,25 +10,19 @@ import structured_fields/errors.{
 }
 import structured_fields/types.{
   type BareItem, type Element, type Parameter, BareString, Boolean, Decimal,
-  FieldList, InnerList, Integer, Item,
+  FieldList, InnerList, Integer, Item, Token,
 }
 
-pub fn parse(value: String) -> Result(Element, ParseError) {
-  let current_position = 0
-  let next_char = string.slice(value, current_position, 1)
-
-  let result = case next_char {
-    "(" -> parse_inner_list(value, current_position + 1)
-    _ -> parse_list(value, [], current_position)
-  }
+pub fn parse_list(value: String) -> Result(Element, ParseError) {
+  let result = parse_list_internal(value, [], 0)
 
   case result {
-    Ok(#(fields, _)) -> Ok(fields)
+    Ok(#(field_list, _)) -> Ok(field_list)
     Error(e) -> Error(e)
   }
 }
 
-fn parse_list(
+fn parse_list_internal(
   value: String,
   members: List(Element),
   current_position: Int,
@@ -39,20 +33,30 @@ fn parse_list(
   case is_end {
     True -> Ok(#(FieldList(value: members), current_position))
     False -> {
-      io.println(
-        "Current position: "
-        <> int.to_string(current_position)
-        <> ".. End: "
-        <> int.to_string(end),
-      )
       use #(parsed_member, new_position) <- result.try(parse_item_or_inner_list(
         value,
         current_position,
       ))
       let members = list.append(members, [parsed_member])
 
+      io.println(
+        "Parsed member: "
+        <> string.inspect(parsed_member)
+        <> ".. New position: "
+        <> int.to_string(new_position),
+      )
+
       let skipped_position = skip_whitespace(value, new_position)
       let next_char = string.slice(value, skipped_position, 1)
+
+      io.println(
+        "Current position: "
+        <> int.to_string(skipped_position)
+        <> ".. Members: "
+        <> string.inspect(members)
+        <> ".. Next char: "
+        <> next_char,
+      )
 
       let result = case next_char {
         "," -> {
@@ -61,11 +65,12 @@ fn parse_list(
 
           let result = case has_trailing_comma {
             True -> Error(TrailingCommaError(skipped_position))
-            False -> parse_list(value, members, skipped_position)
+            False -> parse_list_internal(value, members, skipped_position)
           }
 
           result
         }
+        "" -> Ok(#(FieldList(value: members), skipped_position))
         _ -> {
           io.println(
             "Next char: "
@@ -110,6 +115,12 @@ fn parse_item(
   value: String,
   current_position: Int,
 ) -> Result(#(Element, Int), ParseError) {
+  io.println(
+    "Parsing item at position: "
+    <> int.to_string(current_position)
+    <> ".. Value: "
+    <> string.slice(value, current_position, 10),
+  )
   use #(bare_item, new_position) <- result.try(parse_bare_item(
     value,
     current_position,
@@ -129,6 +140,12 @@ fn parse_bare_item(
   value: String,
   current_position: Int,
 ) -> Result(#(BareItem, Int), ParseError) {
+  io.println(
+    "Parsing bare item at position: "
+    <> int.to_string(current_position)
+    <> ".. Value: "
+    <> string.slice(value, current_position, 10),
+  )
   let next_char = string.slice(value, current_position, 1)
   let is_digit = should_parse_as_digit(next_char)
   let is_token = should_parse_as_token(next_char)
@@ -157,6 +174,12 @@ fn parse_string(
   current_position: Int,
   current_string: String,
 ) -> Result(#(BareItem, Int), ParseError) {
+  io.println(
+    "Parsing string at position: "
+    <> int.to_string(current_position)
+    <> ".. Value: "
+    <> string.slice(value, current_position, 10),
+  )
   let next_char = string.slice(value, current_position, 1)
   let code_point = next_char |> string.to_utf_codepoints |> list.first
   let code = case code_point {
@@ -172,11 +195,11 @@ fn parse_string(
       case next_char {
         "\\" -> {
           let new_string = string.append(current_string, "\\\\")
-          parse_string(value, current_position + 3, new_string)
+          parse_string(value, current_position + 2, new_string)
         }
         "\"" -> {
           let new_string = string.append(current_string, "\"")
-          parse_string(value, current_position + 3, new_string)
+          parse_string(value, current_position + 2, new_string)
         }
         _ -> Error(InvalidStringInput(current_position))
       }
@@ -186,7 +209,7 @@ fn parse_string(
     // Reached end without closing quote
     _ if is_invalid_code_point -> Error(InvalidStringInput(current_position))
     _ -> {
-      let new_string = string.append(current_string, "\"")
+      let new_string = string.append(current_string, next_char)
       parse_string(value, current_position + 1, new_string)
     }
   }
@@ -197,16 +220,22 @@ fn parse_token(
   current_position: Int,
   current_string: String,
 ) -> Result(#(BareItem, Int), ParseError) {
+  io.println(
+    "Parsing token at position: "
+    <> int.to_string(current_position)
+    <> ".. Value: "
+    <> string.slice(value, current_position, 10),
+  )
   let next_char = string.slice(value, current_position, 1)
   let is_still_token = should_parse_as_token(next_char)
 
   case next_char {
+    "" -> Ok(#(Token(current_string), current_position))
     _ if is_still_token -> {
       let new_string = string.append(current_string, next_char)
       parse_token(value, current_position + 1, new_string)
     }
-    "" -> Ok(#(BareString(current_string), current_position + 1))
-    _ -> Ok(#(BareString(current_string), current_position + 1))
+    _ -> Ok(#(Token(current_string), current_position))
   }
 }
 
@@ -264,8 +293,8 @@ fn parse_integer_or_decimal(
         }
       }
     }
-    // TODO: "Otherwise, prepend char to input_string, and exit the loop."
-    _ -> Error(WrongDecimalOrIntegerInput(current_position))
+    _ ->
+      finalize_integer_or_decimal_parsing(input_number, sign, current_position)
   }
 }
 
@@ -312,7 +341,7 @@ fn parse_decimal_result(
     Error(_) -> Error(WrongDecimalOrIntegerInput(current_position))
     Ok(n) -> {
       let signed_number = sign |> int.to_float |> float.multiply(n)
-      Ok(#(Decimal(signed_number), current_position + 1))
+      Ok(#(Decimal(signed_number), current_position))
     }
   }
 }
@@ -328,7 +357,7 @@ fn parse_integer_result(
     Error(_) -> Error(WrongDecimalOrIntegerInput(current_position))
     Ok(n) -> {
       let signed_number = sign * n
-      Ok(#(Integer(signed_number), current_position + 1))
+      Ok(#(Integer(signed_number), current_position))
     }
   }
 }

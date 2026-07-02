@@ -4,7 +4,7 @@ import structured_fields/parser
 
 pub fn main() {
   let value = "blu, meh"
-  let parsed = parser.parse(value)
+  let parsed = parser.parse_list(value)
 
   case parsed {
     Ok(fields) -> {

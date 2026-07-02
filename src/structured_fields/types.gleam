@@ -9,9 +9,9 @@ pub type Element {
 }
 
 pub type BareItem {
-  BareString(value: String)
-  IntegerOrDecimal
+  BareString(String)
   Boolean(Bool)
   Integer(Int)
   Decimal(Float)
+  Token(String)
 }
