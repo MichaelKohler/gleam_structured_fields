@@ -11,7 +11,28 @@ Implements parsing and serializing of [RFC 9651](https://www.rfc-editor.org/info
 gleam add structured_fields
 ```
 
-See the example in `example.gleam` and run:
+```gleam
+import gleam/io
+import gleam/string
+import structured_fields/parser
+
+pub fn main() {
+  let value = "%\"This is intended for display to %c3%bcsers.\""
+  let parsed = parser.parse_list(value)
+
+  case parsed {
+    Ok(fields) -> {
+      io.println(string.inspect(fields))
+    }
+    Error(e) -> {
+      io.println("Error parsing structured fields")
+      io.println(string.inspect(e))
+    }
+  }
+}
+```
+
+or run:
 
 ```sh
 gleam run -m example
@@ -34,6 +55,5 @@ gleam test  # Run the tests
 * Implement Inner List
 * Implement Serializing
 * Possible to tighten the return types of the parse functions?
-* Add examples to README directly once working
 * Publish hexdocs doc
 * Implement https://github.com/httpwg/structured-field-tests/ tests
