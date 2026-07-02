@@ -49,7 +49,6 @@ gleam test  # Run the tests
 
 ## Todo
 
-* Implement Byte Sequence
 * Implement Parameters
 * Implement Dictionary ("ordered"!)
 * Implement Inner List

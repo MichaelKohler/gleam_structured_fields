@@ -11,6 +11,7 @@ pub type Element {
 pub type BareItem {
   BareString(String)
   Boolean(Bool)
+  ByteSequence(BitArray)
   Integer(Int)
   Decimal(Float)
   Token(String)

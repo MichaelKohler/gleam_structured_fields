@@ -1,6 +1,7 @@
 pub type ParseError {
   CommaExpectedError(current_position: Int)
   InvalidBoolean(current_position: Int)
+  InvalidByteSequence(current_position: Int)
   InvalidDisplayString(current_position: Int)
   InvalidStringInput(current_position: Int)
   NonAsciiInput

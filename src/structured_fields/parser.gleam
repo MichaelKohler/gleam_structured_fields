@@ -5,13 +5,13 @@ import gleam/list
 import gleam/result
 import gleam/string
 import structured_fields/errors.{
-  type ParseError, CommaExpectedError, InvalidBoolean, InvalidDisplayString,
-  InvalidStringInput, NonAsciiInput, TrailingCommaError, UnrecognizedItemType,
-  WrongDateFormat, WrongDecimalOrIntegerInput,
+  type ParseError, CommaExpectedError, InvalidBoolean, InvalidByteSequence,
+  InvalidDisplayString, InvalidStringInput, NonAsciiInput, TrailingCommaError,
+  UnrecognizedItemType, WrongDateFormat, WrongDecimalOrIntegerInput,
 }
 import structured_fields/types.{
-  type BareItem, type Element, type Parameter, BareString, Boolean, Decimal,
-  DisplayString, FieldList, InnerList, Integer, Item, Token,
+  type BareItem, type Element, type Parameter, BareString, Boolean, ByteSequence,
+  Decimal, DisplayString, FieldList, InnerList, Integer, Item, Token,
 }
 
 pub fn parse_list(value: String) -> Result(Element, ParseError) {
@@ -129,6 +129,7 @@ fn parse_bare_item(
     "\"" -> parse_string(value, current_position + 1, "")
     "?" -> parse_boolean(value, current_position + 1)
     "@" -> parse_date(value, current_position + 1)
+    ":" -> parse_byte_sequence(value, current_position + 1, "")
     "%" -> {
       let next = string.slice(value, current_position + 1, 1)
       case next {
@@ -220,6 +221,29 @@ fn parse_boolean(
     "1" -> Ok(#(Boolean(True), current_position + 1))
     "0" -> Ok(#(Boolean(False), current_position + 1))
     _ -> Error(InvalidBoolean(current_position))
+  }
+}
+
+fn parse_byte_sequence(
+  value: String,
+  current_position: Int,
+  accumulated: String,
+) -> Result(#(BareItem, Int), ParseError) {
+  let next_char = string.slice(value, current_position, 1)
+
+  case next_char {
+    "" -> Error(InvalidByteSequence(current_position))
+    ":" ->
+      case bit_array.base64_decode(accumulated) {
+        Ok(bits) -> Ok(#(ByteSequence(bits), current_position + 1))
+        Error(_) -> Error(InvalidByteSequence(current_position))
+      }
+    _ ->
+      parse_byte_sequence(
+        value,
+        current_position + 1,
+        accumulated <> next_char,
+      )
   }
 }
 
