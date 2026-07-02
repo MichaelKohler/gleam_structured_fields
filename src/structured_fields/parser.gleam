@@ -1,12 +1,12 @@
 import gleam/float
 import gleam/int
-import gleam/io
 import gleam/list
 import gleam/result
 import gleam/string
 import structured_fields/errors.{
   type ParseError, CommaExpectedError, InvalidBoolean, InvalidStringInput,
-  TrailingCommaError, UnrecognizedItemType, WrongDecimalOrIntegerInput,
+  TrailingCommaError, UnrecognizedItemType, WrongDateFormat,
+  WrongDecimalOrIntegerInput,
 }
 import structured_fields/types.{
   type BareItem, type Element, type Parameter, BareString, Boolean, Decimal,
@@ -55,8 +55,7 @@ fn parse_list_internal(
           result
         }
         "" -> Ok(#(FieldList(value: members), skipped_position))
-        _ -> 
-          Error(CommaExpectedError(skipped_position))
+        _ -> Error(CommaExpectedError(skipped_position))
       }
 
       result
@@ -116,10 +115,11 @@ fn parse_bare_item(
   let is_token = should_parse_as_token(next_char)
 
   case next_char {
-    _ if is_digit -> parse_integer_or_decimal(value, current_position, "", 1)
     "\"" -> parse_string(value, current_position + 1, "")
-    _ if is_token -> parse_token(value, current_position, "")
     "?" -> parse_boolean(value, current_position + 1)
+    "@" -> parse_date(value, current_position + 1)
+    _ if is_digit -> parse_integer_or_decimal(value, current_position, "", 1)
+    _ if is_token -> parse_token(value, current_position, "")
     _ -> Error(UnrecognizedItemType(current_position))
   }
 }
@@ -205,6 +205,24 @@ fn parse_boolean(
   }
 }
 
+fn parse_date(
+  value: String,
+  current_position: Int,
+) -> Result(#(BareItem, Int), ParseError) {
+  let result = parse_integer_or_decimal(value, current_position, "", 1)
+
+  case result {
+    Ok(#(bare_item, new_position)) -> {
+      case bare_item {
+        Integer(n) -> Ok(#(Integer(n), new_position))
+        Decimal(_) -> Error(WrongDateFormat(current_position))
+        _ -> Error(WrongDateFormat(current_position))
+      }
+    }
+    Error(e) -> Error(e)
+  }
+}
+
 fn parse_integer_or_decimal(
   value: String,
   current_position: Int,
@@ -265,7 +283,7 @@ fn finalize_integer_or_decimal_parsing(
     |> list.last
     |> result.unwrap("")
     |> string.length
-  let more_than_3_decimals = decimals_after_period > 3
+  let more_than_3_decimals = is_decimal && decimals_after_period > 3
   let is_valid = !last_char_is_period && !more_than_3_decimals && !too_long
 
   case is_valid {

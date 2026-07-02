@@ -3,7 +3,7 @@ import gleam/string
 import structured_fields/parser
 
 pub fn main() {
-  let value = "blu, meh"
+  let value = "@123412312"
   let parsed = parser.parse_list(value)
 
   case parsed {

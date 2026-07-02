@@ -28,7 +28,7 @@ gleam test  # Run the tests
 
 ## Todo
 
-* Implement Date, Display String, Byte Sequence
+* Implement Display String, Byte Sequence
 * Implement Parameters
 * Implement Dictionary
 * Implement Inner List
