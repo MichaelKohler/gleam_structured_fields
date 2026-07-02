@@ -15,8 +15,7 @@ pub fn parse_decimal_zero_test() {
 }
 
 pub fn parse_decimal_three_fractional_digits_test() {
-  assert parser.parse_list("1.123")
-    == Ok(FieldList([Item(Decimal(1.123), [])]))
+  assert parser.parse_list("1.123") == Ok(FieldList([Item(Decimal(1.123), [])]))
 }
 
 pub fn parse_decimal_too_many_fractional_digits_test() {

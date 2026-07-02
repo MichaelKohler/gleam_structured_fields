@@ -1,5 +1,5 @@
 pub type Parameter {
-  Parameter(name: String, value: String)
+  Parameter(name: String, value: BareItem)
 }
 
 pub type Element {

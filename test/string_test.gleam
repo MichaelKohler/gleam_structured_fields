@@ -8,8 +8,7 @@ pub fn parse_string_simple_test() {
 }
 
 pub fn parse_string_empty_test() {
-  assert parser.parse_list("\"\"")
-    == Ok(FieldList([Item(BareString(""), [])]))
+  assert parser.parse_list("\"\"") == Ok(FieldList([Item(BareString(""), [])]))
 }
 
 pub fn parse_string_escaped_quote_test() {

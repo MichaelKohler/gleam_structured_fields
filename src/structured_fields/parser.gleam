@@ -6,12 +6,13 @@ import gleam/result
 import gleam/string
 import structured_fields/errors.{
   type ParseError, CommaExpectedError, InvalidBoolean, InvalidByteSequence,
-  InvalidDisplayString, InvalidStringInput, NonAsciiInput, TrailingCommaError,
-  UnrecognizedItemType, WrongDateFormat, WrongDecimalOrIntegerInput,
+  InvalidDisplayString, InvalidParameterKey, InvalidStringInput, NonAsciiInput,
+  TrailingCommaError, UnrecognizedItemType, WrongDateFormat,
+  WrongDecimalOrIntegerInput,
 }
 import structured_fields/types.{
   type BareItem, type Element, type Parameter, BareString, Boolean, ByteSequence,
-  Decimal, DisplayString, FieldList, InnerList, Integer, Item, Token,
+  Decimal, DisplayString, FieldList, InnerList, Integer, Item, Parameter, Token,
 }
 
 pub fn parse_list(value: String) -> Result(Element, ParseError) {
@@ -106,10 +107,9 @@ fn parse_item(
     value,
     current_position,
   ))
-  use #(parameters, new_position) <- result.try(parse_parameters(
-    value,
-    new_position,
-  ))
+  use #(parameters, new_position) <- result.try(
+    parse_parameters(value, new_position, []),
+  )
 
   let item = Item(value: bare_item, parameters: parameters)
   let result = #(item, new_position)
@@ -146,11 +146,50 @@ fn parse_bare_item(
 fn parse_parameters(
   value: String,
   current_position: Int,
+  accumulated: List(Parameter),
 ) -> Result(#(List(Parameter), Int), ParseError) {
-  let parameter_list = []
-  let result = #(parameter_list, current_position)
+  let next_char = string.slice(value, current_position, 1)
 
-  Ok(result)
+  case next_char {
+    ";" -> {
+      let pos = skip_whitespace(value, current_position + 1)
+      use #(key, pos) <- result.try(parse_parameter_key(value, pos, ""))
+      case string.slice(value, pos, 1) {
+        "=" -> {
+          use #(param_value, pos) <- result.try(parse_bare_item(value, pos + 1))
+          let param = Parameter(name: key, value: param_value)
+          parse_parameters(value, pos, list.append(accumulated, [param]))
+        }
+        _ -> {
+          let param = Parameter(name: key, value: Boolean(True))
+          parse_parameters(value, pos, list.append(accumulated, [param]))
+        }
+      }
+    }
+    _ -> Ok(#(accumulated, current_position))
+  }
+}
+
+fn parse_parameter_key(
+  value: String,
+  current_position: Int,
+  accumulated: String,
+) -> Result(#(String, Int), ParseError) {
+  let next_char = string.slice(value, current_position, 1)
+  let is_start = accumulated == ""
+  let is_valid = case is_start {
+    True -> is_parameter_key_start_char(next_char)
+    False -> is_parameter_key_char(next_char)
+  }
+
+  case next_char {
+    "" if is_start -> Error(InvalidParameterKey(current_position))
+    "" -> Ok(#(accumulated, current_position))
+    _ if is_valid ->
+      parse_parameter_key(value, current_position + 1, accumulated <> next_char)
+    _ if is_start -> Error(InvalidParameterKey(current_position))
+    _ -> Ok(#(accumulated, current_position))
+  }
 }
 
 fn parse_string(
@@ -239,11 +278,7 @@ fn parse_byte_sequence(
         Error(_) -> Error(InvalidByteSequence(current_position))
       }
     _ ->
-      parse_byte_sequence(
-        value,
-        current_position + 1,
-        accumulated <> next_char,
-      )
+      parse_byte_sequence(value, current_position + 1, accumulated <> next_char)
   }
 }
 
@@ -448,4 +483,12 @@ fn should_parse_as_token(character: String) -> Bool {
 
 fn is_hex_digit(char: String) -> Bool {
   string.contains("0123456789abcdefABCDEF", char)
+}
+
+fn is_parameter_key_start_char(char: String) -> Bool {
+  string.contains("abcdefghijklmnopqrstuvwxyz*", char)
+}
+
+fn is_parameter_key_char(char: String) -> Bool {
+  string.contains("abcdefghijklmnopqrstuvwxyz0123456789_-.*", char)
 }
