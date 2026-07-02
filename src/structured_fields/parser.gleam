@@ -39,24 +39,8 @@ fn parse_list_internal(
       ))
       let members = list.append(members, [parsed_member])
 
-      io.println(
-        "Parsed member: "
-        <> string.inspect(parsed_member)
-        <> ".. New position: "
-        <> int.to_string(new_position),
-      )
-
       let skipped_position = skip_whitespace(value, new_position)
       let next_char = string.slice(value, skipped_position, 1)
-
-      io.println(
-        "Current position: "
-        <> int.to_string(skipped_position)
-        <> ".. Members: "
-        <> string.inspect(members)
-        <> ".. Next char: "
-        <> next_char,
-      )
 
       let result = case next_char {
         "," -> {
@@ -71,15 +55,8 @@ fn parse_list_internal(
           result
         }
         "" -> Ok(#(FieldList(value: members), skipped_position))
-        _ -> {
-          io.println(
-            "Next char: "
-            <> next_char
-            <> ".. Index: "
-            <> int.to_string(skipped_position),
-          )
+        _ -> 
           Error(CommaExpectedError(skipped_position))
-        }
       }
 
       result
@@ -115,12 +92,6 @@ fn parse_item(
   value: String,
   current_position: Int,
 ) -> Result(#(Element, Int), ParseError) {
-  io.println(
-    "Parsing item at position: "
-    <> int.to_string(current_position)
-    <> ".. Value: "
-    <> string.slice(value, current_position, 10),
-  )
   use #(bare_item, new_position) <- result.try(parse_bare_item(
     value,
     current_position,
@@ -140,12 +111,6 @@ fn parse_bare_item(
   value: String,
   current_position: Int,
 ) -> Result(#(BareItem, Int), ParseError) {
-  io.println(
-    "Parsing bare item at position: "
-    <> int.to_string(current_position)
-    <> ".. Value: "
-    <> string.slice(value, current_position, 10),
-  )
   let next_char = string.slice(value, current_position, 1)
   let is_digit = should_parse_as_digit(next_char)
   let is_token = should_parse_as_token(next_char)
@@ -174,12 +139,6 @@ fn parse_string(
   current_position: Int,
   current_string: String,
 ) -> Result(#(BareItem, Int), ParseError) {
-  io.println(
-    "Parsing string at position: "
-    <> int.to_string(current_position)
-    <> ".. Value: "
-    <> string.slice(value, current_position, 10),
-  )
   let next_char = string.slice(value, current_position, 1)
   let code_point = next_char |> string.to_utf_codepoints |> list.first
   let code = case code_point {
@@ -220,12 +179,6 @@ fn parse_token(
   current_position: Int,
   current_string: String,
 ) -> Result(#(BareItem, Int), ParseError) {
-  io.println(
-    "Parsing token at position: "
-    <> int.to_string(current_position)
-    <> ".. Value: "
-    <> string.slice(value, current_position, 10),
-  )
   let next_char = string.slice(value, current_position, 1)
   let is_still_token = should_parse_as_token(next_char)
 

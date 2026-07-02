@@ -28,14 +28,12 @@ gleam test  # Run the tests
 
 ## Todo
 
-* Get to run what we currently have (Integer, Float, Boolean)
 * Implement Date, Display String, Byte Sequence
 * Implement Parameters
 * Implement Dictionary
 * Implement Inner List
 * Implement Serializing
 * Verify that value is an ASCII string
-* Remove all io.println
 * Look at "ordered" requirements
 * Possible to tighten the return types of the parse functions?
 * Add examples to README directly once working
