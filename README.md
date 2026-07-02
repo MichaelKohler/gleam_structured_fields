@@ -30,11 +30,10 @@ gleam test  # Run the tests
 
 * Implement Display String, Byte Sequence
 * Implement Parameters
-* Implement Dictionary
+* Implement Dictionary ("ordered"!)
 * Implement Inner List
-* Implement Serializing
 * Verify that value is an ASCII string
-* Look at "ordered" requirements
+* Implement Serializing
 * Possible to tighten the return types of the parse functions?
 * Add examples to README directly once working
 * Publish hexdocs doc
