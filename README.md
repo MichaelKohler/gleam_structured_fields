@@ -28,7 +28,7 @@ gleam test  # Run the tests
 
 ## Todo
 
-* Get to run what we currently have (List, Integer, Float, Token, String, Boolean)
+* Get to run what we currently have (Integer, Float, Boolean)
 * Implement Date, Display String, Byte Sequence
 * Implement Parameters
 * Implement Dictionary

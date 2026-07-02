@@ -154,7 +154,7 @@ fn parse_bare_item(
     _ if is_digit -> parse_integer_or_decimal(value, current_position, "", 1)
     "\"" -> parse_string(value, current_position + 1, "")
     _ if is_token -> parse_token(value, current_position, "")
-    "?" -> parse_boolean(value, current_position)
+    "?" -> parse_boolean(value, current_position + 1)
     _ -> Error(UnrecognizedItemType(current_position))
   }
 }
