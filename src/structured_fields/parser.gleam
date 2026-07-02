@@ -1,16 +1,17 @@
+import gleam/bit_array
 import gleam/float
 import gleam/int
 import gleam/list
 import gleam/result
 import gleam/string
 import structured_fields/errors.{
-  type ParseError, CommaExpectedError, InvalidBoolean, InvalidStringInput,
-  TrailingCommaError, UnrecognizedItemType, WrongDateFormat,
+  type ParseError, CommaExpectedError, InvalidBoolean, InvalidDisplayString,
+  InvalidStringInput, TrailingCommaError, UnrecognizedItemType, WrongDateFormat,
   WrongDecimalOrIntegerInput,
 }
 import structured_fields/types.{
   type BareItem, type Element, type Parameter, BareString, Boolean, Decimal,
-  FieldList, InnerList, Integer, Item, Token,
+  DisplayString, FieldList, InnerList, Integer, Item, Token,
 }
 
 pub fn parse_list(value: String) -> Result(Element, ParseError) {
@@ -118,6 +119,13 @@ fn parse_bare_item(
     "\"" -> parse_string(value, current_position + 1, "")
     "?" -> parse_boolean(value, current_position + 1)
     "@" -> parse_date(value, current_position + 1)
+    "%" -> {
+      let next = string.slice(value, current_position + 1, 1)
+      case next {
+        "\"" -> parse_display_string(value, current_position + 2, <<>>)
+        _ -> Error(InvalidDisplayString(current_position))
+      }
+    }
     _ if is_digit -> parse_integer_or_decimal(value, current_position, "", 1)
     _ if is_token -> parse_token(value, current_position, "")
     _ -> Error(UnrecognizedItemType(current_position))
@@ -202,6 +210,56 @@ fn parse_boolean(
     "1" -> Ok(#(Boolean(True), current_position + 1))
     "0" -> Ok(#(Boolean(False), current_position + 1))
     _ -> Error(InvalidBoolean(current_position))
+  }
+}
+
+fn parse_display_string(
+  value: String,
+  current_position: Int,
+  accumulated: BitArray,
+) -> Result(#(BareItem, Int), ParseError) {
+  let next_char = string.slice(value, current_position, 1)
+
+  case next_char {
+    "" -> Error(InvalidDisplayString(current_position))
+    "\"" ->
+      case bit_array.to_string(accumulated) {
+        Ok(s) -> Ok(#(DisplayString(s), current_position + 1))
+        Error(_) -> Error(InvalidDisplayString(current_position))
+      }
+    "%" -> {
+      let hex1 = string.slice(value, current_position + 1, 1)
+      let hex2 = string.slice(value, current_position + 2, 1)
+      case is_hex_digit(hex1) && is_hex_digit(hex2) {
+        False -> Error(InvalidDisplayString(current_position))
+        True ->
+          case int.base_parse(hex1 <> hex2, 16) {
+            Error(_) -> Error(InvalidDisplayString(current_position))
+            Ok(byte) ->
+              parse_display_string(
+                value,
+                current_position + 3,
+                bit_array.append(accumulated, <<byte>>),
+              )
+          }
+      }
+    }
+    _ -> {
+      let code_point = next_char |> string.to_utf_codepoints |> list.first
+      let code = case code_point {
+        Ok(n) -> string.utf_codepoint_to_int(n)
+        Error(_) -> 0
+      }
+      case code >= 0x20 && code <= 0x7e {
+        False -> Error(InvalidDisplayString(current_position))
+        True ->
+          parse_display_string(
+            value,
+            current_position + 1,
+            bit_array.append(accumulated, <<code>>),
+          )
+      }
+    }
   }
 }
 
@@ -352,4 +410,8 @@ fn should_parse_as_token(character: String) -> Bool {
   let token_characters =
     ":/!#$%&'*+\\-.^_`|~0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
   string.contains(token_characters, character)
+}
+
+fn is_hex_digit(char: String) -> Bool {
+  string.contains("0123456789abcdefABCDEF", char)
 }

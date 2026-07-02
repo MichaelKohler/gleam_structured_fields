@@ -14,4 +14,5 @@ pub type BareItem {
   Integer(Int)
   Decimal(Float)
   Token(String)
+  DisplayString(String)
 }

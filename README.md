@@ -28,7 +28,8 @@ gleam test  # Run the tests
 
 ## Todo
 
-* Implement Display String, Byte Sequence
+* Add tests for all other parsing
+* Implement Byte Sequence
 * Implement Parameters
 * Implement Dictionary ("ordered"!)
 * Implement Inner List
@@ -37,3 +38,4 @@ gleam test  # Run the tests
 * Possible to tighten the return types of the parse functions?
 * Add examples to README directly once working
 * Publish hexdocs doc
+* Implement https://github.com/httpwg/structured-field-tests/ tests
