@@ -32,7 +32,6 @@ gleam test  # Run the tests
 * Implement Parameters
 * Implement Dictionary ("ordered"!)
 * Implement Inner List
-* Verify that value is an ASCII string
 * Implement Serializing
 * Possible to tighten the return types of the parse functions?
 * Add examples to README directly once working

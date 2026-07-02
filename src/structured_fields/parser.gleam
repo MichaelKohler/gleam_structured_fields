@@ -6,8 +6,8 @@ import gleam/result
 import gleam/string
 import structured_fields/errors.{
   type ParseError, CommaExpectedError, InvalidBoolean, InvalidDisplayString,
-  InvalidStringInput, TrailingCommaError, UnrecognizedItemType, WrongDateFormat,
-  WrongDecimalOrIntegerInput,
+  InvalidStringInput, NonAsciiInput, TrailingCommaError, UnrecognizedItemType,
+  WrongDateFormat, WrongDecimalOrIntegerInput,
 }
 import structured_fields/types.{
   type BareItem, type Element, type Parameter, BareString, Boolean, Decimal,
@@ -15,12 +15,22 @@ import structured_fields/types.{
 }
 
 pub fn parse_list(value: String) -> Result(Element, ParseError) {
-  let result = parse_list_internal(value, [], 0)
-
-  case result {
-    Ok(#(field_list, _)) -> Ok(field_list)
-    Error(e) -> Error(e)
+  case is_ascii(value) {
+    False -> Error(NonAsciiInput)
+    True -> {
+      let result = parse_list_internal(value, [], 0)
+      case result {
+        Ok(#(field_list, _)) -> Ok(field_list)
+        Error(e) -> Error(e)
+      }
+    }
   }
+}
+
+fn is_ascii(value: String) -> Bool {
+  value
+  |> string.to_utf_codepoints
+  |> list.all(fn(cp) { string.utf_codepoint_to_int(cp) <= 127 })
 }
 
 fn parse_list_internal(

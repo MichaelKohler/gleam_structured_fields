@@ -1,5 +1,5 @@
 import structured_fields/errors.{
-  CommaExpectedError, TrailingCommaError, UnrecognizedItemType,
+  CommaExpectedError, NonAsciiInput, TrailingCommaError, UnrecognizedItemType,
 }
 import structured_fields/parser
 import structured_fields/types.{BareString, FieldList, Integer, Item, Token}
@@ -40,4 +40,8 @@ pub fn parse_list_missing_comma_test() {
 
 pub fn parse_list_unrecognized_item_test() {
   assert parser.parse_list("[bad") == Error(UnrecognizedItemType(0))
+}
+
+pub fn parse_list_non_ascii_test() {
+  assert parser.parse_list("café") == Error(NonAsciiInput)
 }

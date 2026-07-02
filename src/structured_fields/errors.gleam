@@ -3,6 +3,7 @@ pub type ParseError {
   InvalidBoolean(current_position: Int)
   InvalidDisplayString(current_position: Int)
   InvalidStringInput(current_position: Int)
+  NonAsciiInput
   TrailingCommaError(current_position: Int)
   UnrecognizedItemType(current_position: Int)
   WrongDateFormat(current_position: Int)
