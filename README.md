@@ -28,7 +28,6 @@ gleam test  # Run the tests
 
 ## Todo
 
-* Add tests for all other parsing
 * Implement Byte Sequence
 * Implement Parameters
 * Implement Dictionary ("ordered"!)

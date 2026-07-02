@@ -28,7 +28,7 @@ fn parse_list_internal(
   members: List(Element),
   current_position: Int,
 ) -> Result(#(Element, Int), ParseError) {
-  let end = string.length(value) - 1
+  let end = string.length(value)
   let is_end = current_position >= end
 
   case is_end {
