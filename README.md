@@ -49,7 +49,6 @@ gleam test  # Run the tests
 
 ## Todo
 
-* The parser has a quirk where \\ on the wire is stored as two \ characters rather than one (it doesn't fully unescape)
 * Expose item parsing as pub function
 * Possible to tighten the return types of the parse functions?
 * Publish hexdocs doc

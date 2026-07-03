@@ -19,7 +19,7 @@ pub fn parse_string_escaped_quote_test() {
 
 pub fn parse_string_escaped_backslash_test() {
   assert parser.parse_list("\"back\\\\slash\"")
-    == Ok(FieldList([Item(BareString("back\\\\slash"), [])]))
+    == Ok(FieldList([Item(BareString("back\\slash"), [])]))
 }
 
 pub fn parse_string_invalid_escape_test() {
@@ -50,4 +50,10 @@ pub fn serialize_string_escaped_quote_test() {
 pub fn serialize_string_escaped_backslash_test() {
   assert serializer.serialize_item(Item(BareString("back\\slash"), []))
     == "\"back\\\\slash\""
+}
+
+pub fn string_backslash_roundtrip_test() {
+  let wire = "\"back\\\\slash\""
+  let assert Ok(parsed) = parser.parse_list(wire)
+  assert serializer.serialize_list(parsed) == wire
 }

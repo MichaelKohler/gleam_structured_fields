@@ -289,7 +289,7 @@ fn parse_string(
 
       case next_char {
         "\\" -> {
-          let new_string = string.append(current_string, "\\\\")
+          let new_string = string.append(current_string, "\\")
           parse_string(value, current_position + 2, new_string)
         }
         "\"" -> {
