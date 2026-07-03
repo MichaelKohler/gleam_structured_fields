@@ -8,12 +8,34 @@ import structured_fields/types.{
   Decimal, DisplayString, InnerList, Integer, Item, Parameter, Token,
 }
 
+/// Serializes a Structured Fields List to a header string (RFC 9651 §4.1.1).
+///
+/// Members are joined with `", "`. An empty list produces an empty string.
+///
+/// Example:
+///
+/// ```gleam
+/// serialize_list([Item(Token("a"), []), Item(Integer(1), [])])
+/// // -> "a, 1"
+/// ```
 pub fn serialize_list(value: List(Element)) -> String {
   value
   |> list.map(serialize_element)
   |> string.join(", ")
 }
 
+/// Serializes a Structured Fields Dictionary to a header string (RFC 9651 §4.1.2).
+///
+/// Entries are joined with `", "`. When a value is `Item(Boolean(True), params)`
+/// the `=value` part is omitted (bare-flag shorthand). An empty list produces
+/// an empty string.
+///
+/// Example:
+///
+/// ```gleam
+/// serialize_dictionary([#("a", Item(Boolean(True), [])), #("b", Item(Integer(2), []))])
+/// // -> "a, b=2"
+/// ```
 pub fn serialize_dictionary(pairs: List(#(String, Element))) -> String {
   pairs
   |> list.map(fn(pair) {
@@ -26,6 +48,19 @@ pub fn serialize_dictionary(pairs: List(#(String, Element))) -> String {
   |> string.join(", ")
 }
 
+/// Serializes a single Structured Fields Item or InnerList to a string
+/// (RFC 9651 §4.1.3).
+///
+/// The bare item value is serialized first, followed by any parameters.
+/// For an `InnerList` the members are space-separated and wrapped in
+/// parentheses.
+///
+/// Example:
+///
+/// ```gleam
+/// serialize_item(Item(BareString("hello"), [Parameter("charset", Token("utf-8"))]))
+/// // -> "\"hello\";charset=utf-8"
+/// ```
 pub fn serialize_item(value: Element) -> String {
   case value {
     Item(bare_item, params) ->
@@ -34,6 +69,17 @@ pub fn serialize_item(value: Element) -> String {
   }
 }
 
+/// Serializes a parameter list to its wire representation (RFC 9651 §4.1.3.2).
+///
+/// Each parameter is prefixed with `;`. When the value is `Boolean(True)` the
+/// `=value` part is omitted. An empty list produces an empty string.
+///
+/// Example:
+///
+/// ```gleam
+/// serialize_parameters([Parameter("q", Decimal(0.5)), Parameter("ext", Boolean(True))])
+/// // -> ";q=0.5;ext"
+/// ```
 pub fn serialize_parameters(params: List(Parameter)) -> String {
   params
   |> list.map(fn(param) {

@@ -20,6 +20,21 @@ type IntegerOrDecimal {
   IsDecimal(Float)
 }
 
+/// Parses a Structured Fields List header value (RFC 9651 §4.2.1).
+///
+/// A list is a comma-separated sequence of items and inner lists. Whitespace
+/// around commas is ignored. Returns `Ok([])` for an empty string.
+///
+/// Example:
+///
+/// ```gleam
+/// parse_list("sugar, tea, rum")
+/// // -> Ok([
+/// //   Item(Token("sugar"), []),
+/// //   Item(Token("tea"), []),
+/// //   Item(Token("rum"), []),
+/// // ])
+/// ```
 pub fn parse_list(value: String) -> Result(List(Element), ParseError) {
   case is_ascii(value) {
     False -> Error(NonAsciiInput)
@@ -37,6 +52,22 @@ fn is_ascii(value: String) -> Bool {
   |> list.all(fn(cp) { string.utf_codepoint_to_int(cp) <= 127 })
 }
 
+/// Parses a Structured Fields Dictionary header value (RFC 9651 §4.2.2).
+///
+/// A dictionary is an ordered map represented as a comma-separated sequence of
+/// `key=value` pairs (or bare `key` for a boolean-true shorthand). Keys must
+/// follow parameter-key syntax. Returns the entries in the order they appear in
+/// the header.
+///
+/// Example:
+///
+/// ```gleam
+/// parse_dictionary("en=\"Foo\", de=\"Bar\"")
+/// // -> Ok([
+/// //   #("en", Item(BareString("Foo"), [])),
+/// //   #("de", Item(BareString("Bar"), [])),
+/// // ])
+/// ```
 pub fn parse_dictionary(
   value: String,
 ) -> Result(List(#(String, Element)), ParseError) {
@@ -179,6 +210,17 @@ fn parse_inner_list(
   }
 }
 
+/// Parses a single Structured Fields Item (RFC 9651 §4.2.3).
+///
+/// An item is a bare item value followed by an optional semicolon-delimited
+/// parameter list. Returns the bare value and the parameters as a tuple.
+///
+/// Example:
+///
+/// ```gleam
+/// parse_item("42;q=0.9")
+/// // -> Ok(#(Integer(42), [Parameter("q", Decimal(0.9))]))
+/// ```
 pub fn parse_item(
   value: String,
 ) -> Result(#(BareItem, List(Parameter)), ParseError) {
