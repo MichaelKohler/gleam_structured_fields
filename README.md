@@ -47,8 +47,40 @@ gleam run   # Run the project
 gleam test  # Run the tests
 ```
 
-## Todo
+### Running the official httpwg test suite
 
-* Split out utils to own file
-* Split out dictionary/list/item/parameters into their own files?
-* Implement https://github.com/httpwg/structured-field-tests/ tests
+The [httpwg/structured-field-tests](https://github.com/httpwg/structured-field-tests) test cases are not committed to this repo. A generator script converts them into Gleam test files on demand. `gleam test` will pick them up automatically once generated.
+
+**Steps:**
+
+1. Clone the official test repo:
+
+   ```sh
+   git clone --depth=1 https://github.com/httpwg/structured-field-tests.git /tmp/structured-field-tests
+   ```
+
+2. Install the generator's dependencies (one-time):
+
+   ```sh
+   cd scripts && gleam deps download && cd ..
+   ```
+
+3. Run the generator:
+
+   ```sh
+   cd scripts && gleam run -- /tmp/structured-field-tests && cd ..
+   ```
+
+   This writes one `.gleam` file per JSON test file into `test/httpwg/` (gitignored).
+
+4. Run the tests:
+
+   ```sh
+   gleam test
+   ```
+
+The generator also accepts an explicit output directory as a second argument if you need to place the files elsewhere:
+
+```sh
+cd scripts && gleam run -- /tmp/structured-field-tests ../path/to/output
+```

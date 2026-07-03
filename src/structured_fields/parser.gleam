@@ -398,7 +398,7 @@ fn parse_token(
   current_string: String,
 ) -> Result(#(String, Int), ParseError) {
   let next_char = string.slice(value, current_position, 1)
-  let is_still_token = should_parse_as_token(next_char)
+  let is_still_token = is_token_char(next_char)
 
   case next_char {
     "" -> Ok(#(current_string, current_position))
@@ -629,19 +629,27 @@ fn should_parse_as_digit(character: String) -> Bool {
 }
 
 fn should_parse_as_token(character: String) -> Bool {
+  let token_characters = "*abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+  string.contains(token_characters, character)
+}
+
+fn is_token_char(character: String) -> Bool {
   let token_characters =
     ":/!#$%&'*+\\-.^_`|~0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
   string.contains(token_characters, character)
 }
 
 fn is_hex_digit(char: String) -> Bool {
-  string.contains("0123456789abcdefABCDEF", char)
+  let ascii_chars = "0123456789abcdefABCDEF"
+  string.contains(ascii_chars, char)
 }
 
 fn is_parameter_key_start_char(char: String) -> Bool {
-  string.contains("abcdefghijklmnopqrstuvwxyz*", char)
+  let parameter_key_start_chars = "abcdefghijklmnopqrstuvwxyz*"
+  string.contains(parameter_key_start_chars, char)
 }
 
 fn is_parameter_key_char(char: String) -> Bool {
-  string.contains("abcdefghijklmnopqrstuvwxyz0123456789_-.*", char)
+  let parameter_key_chars = "abcdefghijklmnopqrstuvwxyz0123456789_-.*"
+  string.contains(parameter_key_chars, char)
 }

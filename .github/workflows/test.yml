@@ -18,6 +18,22 @@ jobs:
           gleam-version: "1.17.0"
           rebar3-version: "3"
           # elixir-version: "1"
-      - run: gleam deps download
-      - run: gleam test
-      - run: gleam format --check src test
+      - name: Install main project dependencies
+        run: gleam deps download
+
+      - name: Check format
+        run: gleam format --check src test
+
+      - name: Install script dependencies
+        run: gleam deps download
+        working-directory: scripts
+      - name: Clone httpwg test cases
+        run: git clone --depth=1 https://github.com/httpwg/structured-field-tests.git /tmp/structured-field-tests
+      - name: Generate httpwg test files
+        run: gleam run -- /tmp/structured-field-tests
+        working-directory: scripts
+      - name: Format generated test files
+        run: gleam format test/httpwg
+
+      - name: Test
+        run: gleam test
