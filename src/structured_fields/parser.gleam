@@ -12,7 +12,8 @@ import structured_fields/errors.{
 }
 import structured_fields/types.{
   type BareItem, type Element, type Parameter, BareString, Boolean, ByteSequence,
-  Decimal, DisplayString, FieldList, InnerList, Integer, Item, Parameter, Token,
+  Decimal, Dictionary, DisplayString, FieldList, InnerList, Integer, Item,
+  Parameter, Token,
 }
 
 pub fn parse_list(value: String) -> Result(Element, ParseError) {
@@ -32,6 +33,72 @@ fn is_ascii(value: String) -> Bool {
   value
   |> string.to_utf_codepoints
   |> list.all(fn(cp) { string.utf_codepoint_to_int(cp) <= 127 })
+}
+
+pub fn parse_dictionary(value: String) -> Result(Element, ParseError) {
+  case is_ascii(value) {
+    False -> Error(NonAsciiInput)
+    True -> {
+      let result = parse_dictionary_internal(value, 0, [])
+      case result {
+        Ok(#(dict, _)) -> Ok(dict)
+        Error(e) -> Error(e)
+      }
+    }
+  }
+}
+
+fn parse_dictionary_internal(
+  value: String,
+  current_position: Int,
+  accumulated: List(#(String, Element)),
+) -> Result(#(Element, Int), ParseError) {
+  let end = string.length(value)
+  let is_end = current_position >= end
+
+  case is_end {
+    True -> Ok(#(Dictionary(value: accumulated), current_position))
+    False -> {
+      use #(key, pos) <- result.try(parse_parameter_key(
+        value,
+        current_position,
+        "",
+      ))
+      use #(member_value, pos) <- result.try(parse_dictionary_member_value(
+        value,
+        pos,
+      ))
+      let accumulated = list.append(accumulated, [#(key, member_value)])
+
+      let skipped = skip_whitespace(value, pos)
+      case string.slice(value, skipped, 1) {
+        "," -> {
+          let skipped = skip_whitespace(value, skipped + 1)
+          case skipped >= end {
+            True -> Error(TrailingCommaError(skipped))
+            False -> parse_dictionary_internal(value, skipped, accumulated)
+          }
+        }
+        "" -> Ok(#(Dictionary(value: accumulated), skipped))
+        _ -> Error(CommaExpectedError(skipped))
+      }
+    }
+  }
+}
+
+fn parse_dictionary_member_value(
+  value: String,
+  current_position: Int,
+) -> Result(#(Element, Int), ParseError) {
+  case string.slice(value, current_position, 1) {
+    "=" -> parse_item_or_inner_list(value, current_position + 1)
+    _ -> {
+      use #(params, pos) <- result.try(
+        parse_parameters(value, current_position, []),
+      )
+      Ok(#(Item(value: Boolean(True), parameters: params), pos))
+    }
+  }
 }
 
 fn parse_list_internal(

@@ -5,8 +5,7 @@ import structured_fields/types.{
 }
 
 pub fn parse_inner_list_empty_test() {
-  assert parser.parse_list("()")
-    == Ok(FieldList([InnerList([], [])]))
+  assert parser.parse_list("()") == Ok(FieldList([InnerList([], [])]))
 }
 
 pub fn parse_inner_list_single_item_test() {
@@ -48,10 +47,9 @@ pub fn parse_inner_list_with_parameters_test() {
   assert parser.parse_list("(1 2); level=5")
     == Ok(
       FieldList([
-        InnerList(
-          [Item(Integer(1), []), Item(Integer(2), [])],
-          [Parameter("level", Integer(5))],
-        ),
+        InnerList([Item(Integer(1), []), Item(Integer(2), [])], [
+          Parameter("level", Integer(5)),
+        ]),
       ]),
     )
 }
