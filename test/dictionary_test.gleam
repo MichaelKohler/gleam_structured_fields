@@ -39,7 +39,7 @@ pub fn parse_dictionary_inner_list_value_test() {
 }
 
 pub fn parse_dictionary_trailing_comma_test() {
-  assert parser.parse_dictionary("a=1,") == Error(TrailingCommaError(4))
+  assert parser.parse_dictionary("a=1,") == Error(TrailingCommaError(3))
 }
 
 pub fn parse_dictionary_invalid_key_test() {

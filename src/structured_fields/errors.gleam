@@ -33,7 +33,7 @@ pub type ParseError {
   NonAsciiInput
 
   /// A comma was found after the last list or dictionary member with no
-  /// following member. The position points past the comma.
+  /// following member.
   TrailingCommaError(current_position: Int)
 
   /// An inner list opened with `(` was never closed with `)`.

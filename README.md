@@ -49,7 +49,6 @@ gleam test  # Run the tests
 
 ## Todo
 
-* Fix TrailingCommaError position?
 * Split out utils to own file
 * Split out dictionary/list/item/parameters into their own files?
 * Implement https://github.com/httpwg/structured-field-tests/ tests

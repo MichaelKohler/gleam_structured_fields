@@ -103,17 +103,17 @@ fn parse_dictionary_internal(
       ))
       let accumulated = list.append(accumulated, [#(key, member_value)])
 
-      let skipped = skip_whitespace(value, pos)
-      case string.slice(value, skipped, 1) {
+      let new_character_position = skip_whitespace(value, pos)
+      case string.slice(value, new_character_position, 1) {
         "," -> {
-          let skipped = skip_whitespace(value, skipped + 1)
+          let skipped = skip_whitespace(value, new_character_position + 1)
           case skipped >= end {
-            True -> Error(TrailingCommaError(skipped))
+            True -> Error(TrailingCommaError(new_character_position))
             False -> parse_dictionary_internal(value, skipped, accumulated)
           }
         }
-        "" -> Ok(#(accumulated, skipped))
-        _ -> Error(CommaExpectedError(skipped))
+        "" -> Ok(#(accumulated, new_character_position))
+        _ -> Error(CommaExpectedError(new_character_position))
       }
     }
   }
@@ -151,23 +151,24 @@ fn parse_list_internal(
       ))
       let members = list.append(members, [parsed_member])
 
-      let skipped_position = skip_whitespace(value, new_position)
-      let next_char = string.slice(value, skipped_position, 1)
+      let new_character_position = skip_whitespace(value, new_position)
+      let next_char = string.slice(value, new_character_position, 1)
 
       let result = case next_char {
         "," -> {
-          let skipped_position = skip_whitespace(value, skipped_position + 1)
+          let skipped_position =
+            skip_whitespace(value, new_character_position + 1)
           let has_trailing_comma = skipped_position >= end
 
           let result = case has_trailing_comma {
-            True -> Error(TrailingCommaError(skipped_position))
+            True -> Error(TrailingCommaError(new_character_position))
             False -> parse_list_internal(value, members, skipped_position)
           }
 
           result
         }
-        "" -> Ok(#(members, skipped_position))
-        _ -> Error(CommaExpectedError(skipped_position))
+        "" -> Ok(#(members, new_character_position))
+        _ -> Error(CommaExpectedError(new_character_position))
       }
 
       result

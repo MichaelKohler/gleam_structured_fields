@@ -26,7 +26,7 @@ pub fn parse_list_mixed_types_test() {
 }
 
 pub fn parse_list_trailing_comma_test() {
-  assert parser.parse_list("1, 2,") == Error(TrailingCommaError(5))
+  assert parser.parse_list("1, 2,") == Error(TrailingCommaError(4))
 }
 
 pub fn parse_list_missing_comma_test() {
