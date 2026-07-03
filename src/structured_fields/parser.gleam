@@ -7,7 +7,7 @@ import gleam/string
 import structured_fields/errors.{
   type ParseError, CommaExpectedError, InvalidBoolean, InvalidByteSequence,
   InvalidDisplayString, InvalidParameterKey, InvalidStringInput, NonAsciiInput,
-  TrailingCommaError, UnrecognizedItemType, WrongDateFormat,
+  TrailingCommaError, UnclosedInnerList, UnrecognizedItemType, WrongDateFormat,
   WrongDecimalOrIntegerInput,
 }
 import structured_fields/types.{
@@ -82,7 +82,7 @@ fn parse_item_or_inner_list(
   let next_char = string.slice(value, current_position, 1)
 
   let result = case next_char {
-    "(" -> parse_inner_list(value, current_position + 1)
+    "(" -> parse_inner_list(value, current_position + 1, [])
     _ -> parse_item(value, current_position)
   }
 
@@ -92,11 +92,22 @@ fn parse_item_or_inner_list(
 fn parse_inner_list(
   value: String,
   current_position: Int,
+  accumulated: List(Element),
 ) -> Result(#(Element, Int), ParseError) {
-  let inner_list = InnerList(value: [], parameters: [])
-  let result = #(inner_list, current_position)
+  let pos = skip_whitespace(value, current_position)
+  let next_char = string.slice(value, pos, 1)
 
-  Ok(result)
+  case next_char {
+    ")" -> {
+      use #(params, pos) <- result.try(parse_parameters(value, pos + 1, []))
+      Ok(#(InnerList(value: accumulated, parameters: params), pos))
+    }
+    "" -> Error(UnclosedInnerList(pos))
+    _ -> {
+      use #(item, pos) <- result.try(parse_item(value, pos))
+      parse_inner_list(value, pos, list.append(accumulated, [item]))
+    }
+  }
 }
 
 fn parse_item(

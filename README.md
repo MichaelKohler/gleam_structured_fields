@@ -50,7 +50,6 @@ gleam test  # Run the tests
 ## Todo
 
 * Implement Dictionary ("ordered"!)
-* Implement Inner List
 * Implement Serializing
 * Possible to tighten the return types of the parse functions?
 * Publish hexdocs doc
