@@ -56,7 +56,8 @@ pub fn serialize_parameter_boolean_shorthand_test() {
 }
 
 pub fn serialize_parameter_integer_value_test() {
-  assert serializer.serialize_parameters([Parameter("n", Integer(42))]) == ";n=42"
+  assert serializer.serialize_parameters([Parameter("n", Integer(42))])
+    == ";n=42"
 }
 
 pub fn serialize_parameter_boolean_false_test() {
@@ -71,20 +72,22 @@ pub fn serialize_parameter_string_value_test() {
 
 pub fn serialize_parameter_token_value_test() {
   assert serializer.serialize_parameters([
-    Parameter("type", Token("text/plain")),
-  ])
+      Parameter("type", Token("text/plain")),
+    ])
     == ";type=text/plain"
 }
 
 pub fn serialize_parameter_multiple_test() {
   assert serializer.serialize_parameters([
-    Parameter("a", Integer(1)),
-    Parameter("b", Boolean(False)),
-  ])
+      Parameter("a", Integer(1)),
+      Parameter("b", Boolean(False)),
+    ])
     == ";a=1;b=?0"
 }
 
 pub fn serialize_item_with_parameters_test() {
-  assert serializer.serialize_item(Item(Token("foo"), [Parameter("n", Integer(42))]))
+  assert serializer.serialize_item(
+      Item(Token("foo"), [Parameter("n", Integer(42))]),
+    )
     == "foo;n=42"
 }

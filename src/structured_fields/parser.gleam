@@ -150,7 +150,7 @@ fn parse_item_or_inner_list(
 
   let result = case next_char {
     "(" -> parse_inner_list(value, current_position + 1, [])
-    _ -> parse_item(value, current_position)
+    _ -> parse_item_internal(value, current_position)
   }
 
   result
@@ -171,13 +171,17 @@ fn parse_inner_list(
     }
     "" -> Error(UnclosedInnerList(pos))
     _ -> {
-      use #(item, pos) <- result.try(parse_item(value, pos))
+      use #(item, pos) <- result.try(parse_item_internal(value, pos))
       parse_inner_list(value, pos, list.append(accumulated, [item]))
     }
   }
 }
 
-fn parse_item(
+pub fn parse_item(value: String) -> Result(#(Element, Int), ParseError) {
+  parse_item_internal(value, 0)
+}
+
+fn parse_item_internal(
   value: String,
   current_position: Int,
 ) -> Result(#(Element, Int), ParseError) {

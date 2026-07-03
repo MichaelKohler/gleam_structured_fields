@@ -47,10 +47,10 @@ pub fn serialize_byte_sequence_empty_test() {
 
 pub fn serialize_byte_sequence_list_test() {
   assert serializer.serialize_list(
-    FieldList([
-      Item(ByteSequence(<<"hello">>), []),
-      Item(ByteSequence(<<"world">>), []),
-    ]),
-  )
+      FieldList([
+        Item(ByteSequence(<<"hello">>), []),
+        Item(ByteSequence(<<"world">>), []),
+      ]),
+    )
     == ":aGVsbG8=:, :d29ybGQ=:"
 }

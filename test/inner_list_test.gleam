@@ -80,26 +80,26 @@ pub fn serialize_inner_list_single_item_test() {
 
 pub fn serialize_inner_list_multiple_items_test() {
   assert serializer.serialize_item(
-    InnerList(
-      [Item(Integer(1), []), Item(Integer(2), []), Item(Integer(3), [])],
-      [],
-    ),
-  )
+      InnerList(
+        [Item(Integer(1), []), Item(Integer(2), []), Item(Integer(3), [])],
+        [],
+      ),
+    )
     == "(1 2 3)"
 }
 
 pub fn serialize_inner_list_with_parameters_test() {
   assert serializer.serialize_item(
-    InnerList([Item(Integer(1), []), Item(Integer(2), [])], [
-      Parameter("level", Integer(5)),
-    ]),
-  )
+      InnerList([Item(Integer(1), []), Item(Integer(2), [])], [
+        Parameter("level", Integer(5)),
+      ]),
+    )
     == "(1 2);level=5"
 }
 
 pub fn serialize_inner_list_item_with_parameters_test() {
   assert serializer.serialize_item(
-    InnerList([Item(Token("foo"), [Parameter("flag", Boolean(True))])], []),
-  )
+      InnerList([Item(Token("foo"), [Parameter("flag", Boolean(True))])], []),
+    )
     == "(foo;flag)"
 }
