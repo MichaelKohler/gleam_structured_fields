@@ -9,7 +9,7 @@ pub fn parse_display_string_ascii_test() {
 }
 
 pub fn parse_display_string_multibyte_test() {
-  assert parser.parse_list("%\"caf%C3%A9\"")
+  assert parser.parse_list("%\"caf%c3%a9\"")
     == Ok([Item(DisplayString("café"), [])])
 }
 
@@ -37,7 +37,7 @@ pub fn serialize_display_string_ascii_test() {
 
 pub fn serialize_display_string_multibyte_test() {
   assert serializer.serialize_item(Item(DisplayString("café"), []))
-    == "%\"caf%C3%A9\""
+    == "%\"caf%c3%a9\""
 }
 
 pub fn serialize_display_string_percent_encoded_test() {

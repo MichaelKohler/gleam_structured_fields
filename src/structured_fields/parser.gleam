@@ -39,7 +39,7 @@ pub fn parse_list(value: String) -> Result(List(Element), ParseError) {
   case is_ascii(value) {
     False -> Error(NonAsciiInput)
     True ->
-      case parse_list_internal(value, [], 0) {
+      case parse_list_internal(value, [], skip_sp(value, 0)) {
         Ok(#(members, _)) -> Ok(members)
         Error(e) -> Error(e)
       }
@@ -74,7 +74,7 @@ pub fn parse_dictionary(
   case is_ascii(value) {
     False -> Error(NonAsciiInput)
     True ->
-      case parse_dictionary_internal(value, 0, []) {
+      case parse_dictionary_internal(value, skip_sp(value, 0), []) {
         Ok(#(dict, _)) -> Ok(dict)
         Error(e) -> Error(e)
       }
@@ -101,7 +101,7 @@ fn parse_dictionary_internal(
         value,
         pos,
       ))
-      let accumulated = list.append(accumulated, [#(key, member_value)])
+      let accumulated = update_or_append_dict(accumulated, key, member_value)
 
       let new_character_position = skip_whitespace(value, pos)
       case string.slice(value, new_character_position, 1) {
@@ -195,7 +195,7 @@ fn parse_inner_list(
   current_position: Int,
   accumulated: List(Element),
 ) -> Result(#(Element, Int), ParseError) {
-  let pos = skip_whitespace(value, current_position)
+  let pos = skip_sp(value, current_position)
   let next_char = string.slice(value, pos, 1)
 
   case next_char {
@@ -206,7 +206,13 @@ fn parse_inner_list(
     "" -> Error(UnclosedInnerList(pos))
     _ -> {
       use #(item, pos) <- result.try(parse_item_internal(value, pos))
-      parse_inner_list(value, pos, list.append(accumulated, [item]))
+      let after = string.slice(value, pos, 1)
+      case after {
+        " " | ")" ->
+          parse_inner_list(value, pos, list.append(accumulated, [item]))
+        "" -> Error(UnclosedInnerList(pos))
+        _ -> Error(UnrecognizedItemType(pos))
+      }
     }
   }
 }
@@ -225,9 +231,14 @@ fn parse_inner_list(
 pub fn parse_item(
   value: String,
 ) -> Result(#(BareItem, List(Parameter)), ParseError) {
-  use #(bare_item, pos) <- result.try(parse_bare_item(value, 0))
-  use #(parameters, _) <- result.try(parse_parameters(value, pos, []))
-  Ok(#(bare_item, parameters))
+  let start = skip_sp(value, 0)
+  use #(bare_item, pos) <- result.try(parse_bare_item(value, start))
+  use #(parameters, pos) <- result.try(parse_parameters(value, pos, []))
+  let end = skip_sp(value, pos)
+  case end >= string.length(value) {
+    True -> Ok(#(bare_item, parameters))
+    False -> Error(UnrecognizedItemType(end))
+  }
 }
 
 fn parse_item_internal(
@@ -312,17 +323,25 @@ fn parse_parameters(
 
   case next_char {
     ";" -> {
-      let pos = skip_whitespace(value, current_position + 1)
+      let pos = skip_sp(value, current_position + 1)
       use #(key, pos) <- result.try(parse_parameter_key(value, pos, ""))
       case string.slice(value, pos, 1) {
         "=" -> {
           use #(param_value, pos) <- result.try(parse_bare_item(value, pos + 1))
           let param = Parameter(name: key, value: param_value)
-          parse_parameters(value, pos, list.append(accumulated, [param]))
+          parse_parameters(
+            value,
+            pos,
+            update_or_append_param(accumulated, param),
+          )
         }
         _ -> {
           let param = Parameter(name: key, value: Boolean(True))
-          parse_parameters(value, pos, list.append(accumulated, [param]))
+          parse_parameters(
+            value,
+            pos,
+            update_or_append_param(accumulated, param),
+          )
         }
       }
     }
@@ -432,11 +451,19 @@ fn parse_byte_sequence(
 
   case next_char {
     "" -> Error(InvalidByteSequence(current_position))
-    ":" ->
-      case bit_array.base64_decode(accumulated) {
-        Ok(bits) -> Ok(#(bits, current_position + 1))
-        Error(_) -> Error(InvalidByteSequence(current_position))
+    ":" -> {
+      let all_valid =
+        string.to_graphemes(accumulated)
+        |> list.all(is_base64_char)
+      case all_valid {
+        False -> Error(InvalidByteSequence(current_position))
+        True ->
+          case bit_array.base64_decode(accumulated) {
+            Ok(bits) -> Ok(#(bits, current_position + 1))
+            Error(_) -> Error(InvalidByteSequence(current_position))
+          }
       }
+    }
     _ ->
       parse_byte_sequence(value, current_position + 1, accumulated <> next_char)
   }
@@ -515,11 +542,13 @@ fn parse_integer_or_decimal(
   case next_char {
     "" ->
       finalize_integer_or_decimal_parsing(input_number, sign, current_position)
-    "-" -> {
+    "-" if input_number == "" && sign == 1 -> {
       let sign = -1
       let new_position = current_position + 1
       parse_integer_or_decimal(value, new_position, input_number, sign)
     }
+    "-" ->
+      finalize_integer_or_decimal_parsing(input_number, sign, current_position)
     _ if digit -> {
       let new_input_number = string.append(input_number, next_char)
       parse_integer_or_decimal(
@@ -556,13 +585,21 @@ fn finalize_integer_or_decimal_parsing(
 ) -> Result(#(IntegerOrDecimal, Int), ParseError) {
   let is_decimal = string.contains(input_number, ".")
   let without_period = string.replace(input_number, ".", "")
-  let too_long = string.length(without_period) > 15
   let last_char_is_period = string.slice(input_number, -1, 1) == "."
   let decimals_after_period =
     string.split(input_number, ".")
     |> list.last
     |> result.unwrap("")
     |> string.length
+  let integer_digits_before_period =
+    string.split(input_number, ".")
+    |> list.first
+    |> result.unwrap("")
+    |> string.length
+  let too_long = case is_decimal {
+    True -> integer_digits_before_period > 12
+    False -> string.length(without_period) > 15
+  }
   let more_than_3_decimals = is_decimal && decimals_after_period > 3
   let is_valid = !last_char_is_period && !more_than_3_decimals && !too_long
 
@@ -635,12 +672,12 @@ fn should_parse_as_token(character: String) -> Bool {
 
 fn is_token_char(character: String) -> Bool {
   let token_characters =
-    ":/!#$%&'*+\\-.^_`|~0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+    ":/!#$%&'*+-.^_`|~0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
   string.contains(token_characters, character)
 }
 
 fn is_hex_digit(char: String) -> Bool {
-  let ascii_chars = "0123456789abcdefABCDEF"
+  let ascii_chars = "0123456789abcdef"
   string.contains(ascii_chars, char)
 }
 
@@ -652,4 +689,50 @@ fn is_parameter_key_start_char(char: String) -> Bool {
 fn is_parameter_key_char(char: String) -> Bool {
   let parameter_key_chars = "abcdefghijklmnopqrstuvwxyz0123456789_-.*"
   string.contains(parameter_key_chars, char)
+}
+
+fn skip_sp(value: String, current_position: Int) -> Int {
+  case string.slice(value, current_position, 1) {
+    " " -> skip_sp(value, current_position + 1)
+    _ -> current_position
+  }
+}
+
+fn is_base64_char(char: String) -> Bool {
+  let base64_chars =
+    "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/="
+  string.contains(base64_chars, char)
+}
+
+fn update_or_append_dict(
+  accumulated: List(#(String, Element)),
+  key: String,
+  value: Element,
+) -> List(#(String, Element)) {
+  case list.any(accumulated, fn(entry) { entry.0 == key }) {
+    True ->
+      list.map(accumulated, fn(entry) {
+        case entry.0 == key {
+          True -> #(key, value)
+          False -> entry
+        }
+      })
+    False -> list.append(accumulated, [#(key, value)])
+  }
+}
+
+fn update_or_append_param(
+  accumulated: List(Parameter),
+  param: Parameter,
+) -> List(Parameter) {
+  case list.any(accumulated, fn(p) { p.name == param.name }) {
+    True ->
+      list.map(accumulated, fn(p) {
+        case p.name == param.name {
+          True -> param
+          False -> p
+        }
+      })
+    False -> list.append(accumulated, [param])
+  }
 }
