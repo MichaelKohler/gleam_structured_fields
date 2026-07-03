@@ -1,22 +1,22 @@
 import structured_fields/errors.{WrongDecimalOrIntegerInput}
 import structured_fields/parser
 import structured_fields/serializer
-import structured_fields/types.{Decimal, FieldList, Item}
+import structured_fields/types.{Decimal, Item}
 
 pub fn parse_decimal_positive_test() {
-  assert parser.parse_list("3.14") == Ok(FieldList([Item(Decimal(3.14), [])]))
+  assert parser.parse_list("3.14") == Ok([Item(Decimal(3.14), [])])
 }
 
 pub fn parse_decimal_negative_test() {
-  assert parser.parse_list("-1.5") == Ok(FieldList([Item(Decimal(-1.5), [])]))
+  assert parser.parse_list("-1.5") == Ok([Item(Decimal(-1.5), [])])
 }
 
 pub fn parse_decimal_zero_test() {
-  assert parser.parse_list("0.0") == Ok(FieldList([Item(Decimal(0.0), [])]))
+  assert parser.parse_list("0.0") == Ok([Item(Decimal(0.0), [])])
 }
 
 pub fn parse_decimal_three_fractional_digits_test() {
-  assert parser.parse_list("1.123") == Ok(FieldList([Item(Decimal(1.123), [])]))
+  assert parser.parse_list("1.123") == Ok([Item(Decimal(1.123), [])])
 }
 
 pub fn parse_decimal_too_many_fractional_digits_test() {

@@ -4,33 +4,25 @@ import structured_fields/errors.{
 import structured_fields/parser
 import structured_fields/serializer
 import structured_fields/types.{
-  BareString, FieldList, InnerList, Integer, Item, Parameter, Token,
+  BareString, InnerList, Integer, Item, Parameter, Token,
 }
 
 pub fn parse_list_single_item_test() {
-  assert parser.parse_list("1") == Ok(FieldList([Item(Integer(1), [])]))
+  assert parser.parse_list("1") == Ok([Item(Integer(1), [])])
 }
 
 pub fn parse_list_multiple_items_test() {
   assert parser.parse_list("1, 2, 3")
-    == Ok(
-      FieldList([
-        Item(Integer(1), []),
-        Item(Integer(2), []),
-        Item(Integer(3), []),
-      ]),
-    )
+    == Ok([Item(Integer(1), []), Item(Integer(2), []), Item(Integer(3), [])])
 }
 
 pub fn parse_list_mixed_types_test() {
   assert parser.parse_list("1, \"two\", foo")
-    == Ok(
-      FieldList([
-        Item(Integer(1), []),
-        Item(BareString("two"), []),
-        Item(Token("foo"), []),
-      ]),
-    )
+    == Ok([
+      Item(Integer(1), []),
+      Item(BareString("two"), []),
+      Item(Token("foo"), []),
+    ])
 }
 
 pub fn parse_list_trailing_comma_test() {
@@ -50,44 +42,38 @@ pub fn parse_list_non_ascii_test() {
 }
 
 pub fn serialize_list_single_item_test() {
-  assert serializer.serialize_list(FieldList([Item(Integer(1), [])])) == "1"
+  assert serializer.serialize_list([Item(Integer(1), [])]) == "1"
 }
 
 pub fn serialize_list_multiple_items_test() {
-  assert serializer.serialize_list(
-      FieldList([
-        Item(Integer(1), []),
-        Item(Integer(2), []),
-        Item(Integer(3), []),
-      ]),
-    )
+  assert serializer.serialize_list([
+      Item(Integer(1), []),
+      Item(Integer(2), []),
+      Item(Integer(3), []),
+    ])
     == "1, 2, 3"
 }
 
 pub fn serialize_list_mixed_types_test() {
-  assert serializer.serialize_list(
-      FieldList([
-        Item(Integer(1), []),
-        Item(BareString("two"), []),
-        Item(Token("foo"), []),
-      ]),
-    )
+  assert serializer.serialize_list([
+      Item(Integer(1), []),
+      Item(BareString("two"), []),
+      Item(Token("foo"), []),
+    ])
     == "1, \"two\", foo"
 }
 
 pub fn serialize_list_with_inner_list_test() {
-  assert serializer.serialize_list(
-      FieldList([
-        InnerList([Item(Integer(1), []), Item(Integer(2), [])], []),
-        Item(Integer(3), []),
-      ]),
-    )
+  assert serializer.serialize_list([
+      InnerList([Item(Integer(1), []), Item(Integer(2), [])], []),
+      Item(Integer(3), []),
+    ])
     == "(1 2), 3"
 }
 
 pub fn serialize_list_item_with_params_test() {
-  assert serializer.serialize_list(
-      FieldList([Item(Token("foo"), [Parameter("n", Integer(1))])]),
-    )
+  assert serializer.serialize_list([
+      Item(Token("foo"), [Parameter("n", Integer(1))]),
+    ])
     == "foo;n=1"
 }

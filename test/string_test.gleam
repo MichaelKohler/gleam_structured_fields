@@ -1,25 +1,24 @@
 import structured_fields/errors.{InvalidStringInput}
 import structured_fields/parser
 import structured_fields/serializer
-import structured_fields/types.{BareString, FieldList, Item}
+import structured_fields/types.{BareString, Item}
 
 pub fn parse_string_simple_test() {
-  assert parser.parse_list("\"hello\"")
-    == Ok(FieldList([Item(BareString("hello"), [])]))
+  assert parser.parse_list("\"hello\"") == Ok([Item(BareString("hello"), [])])
 }
 
 pub fn parse_string_empty_test() {
-  assert parser.parse_list("\"\"") == Ok(FieldList([Item(BareString(""), [])]))
+  assert parser.parse_list("\"\"") == Ok([Item(BareString(""), [])])
 }
 
 pub fn parse_string_escaped_quote_test() {
   assert parser.parse_list("\"say \\\"hi\\\"\"")
-    == Ok(FieldList([Item(BareString("say \"hi\""), [])]))
+    == Ok([Item(BareString("say \"hi\""), [])])
 }
 
 pub fn parse_string_escaped_backslash_test() {
   assert parser.parse_list("\"back\\\\slash\"")
-    == Ok(FieldList([Item(BareString("back\\slash"), [])]))
+    == Ok([Item(BareString("back\\slash"), [])])
 }
 
 pub fn parse_string_invalid_escape_test() {

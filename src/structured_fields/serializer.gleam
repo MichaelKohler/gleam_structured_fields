@@ -5,34 +5,25 @@ import gleam/list
 import gleam/string
 import structured_fields/types.{
   type BareItem, type Element, type Parameter, BareString, Boolean, ByteSequence,
-  Decimal, Dictionary, DisplayString, FieldList, InnerList, Integer, Item,
-  Parameter, Token,
+  Decimal, DisplayString, InnerList, Integer, Item, Parameter, Token,
 }
 
-pub fn serialize_list(value: Element) -> String {
-  case value {
-    FieldList(members) ->
-      members
-      |> list.map(serialize_element)
-      |> string.join(", ")
-    _ -> ""
-  }
+pub fn serialize_list(value: List(Element)) -> String {
+  value
+  |> list.map(serialize_element)
+  |> string.join(", ")
 }
 
-pub fn serialize_dictionary(value: Element) -> String {
-  case value {
-    Dictionary(pairs) ->
-      pairs
-      |> list.map(fn(pair) {
-        let #(key, element) = pair
-        case element {
-          Item(Boolean(True), params) -> key <> serialize_parameters(params)
-          _ -> key <> "=" <> serialize_element(element)
-        }
-      })
-      |> string.join(", ")
-    _ -> ""
-  }
+pub fn serialize_dictionary(pairs: List(#(String, Element))) -> String {
+  pairs
+  |> list.map(fn(pair) {
+    let #(key, element) = pair
+    case element {
+      Item(Boolean(True), params) -> key <> serialize_parameters(params)
+      _ -> key <> "=" <> serialize_element(element)
+    }
+  })
+  |> string.join(", ")
 }
 
 pub fn serialize_item(value: Element) -> String {
@@ -40,7 +31,6 @@ pub fn serialize_item(value: Element) -> String {
     Item(bare_item, params) ->
       serialize_bare_item(bare_item) <> serialize_parameters(params)
     InnerList(items, params) -> serialize_inner_list(items, params)
-    _ -> ""
   }
 }
 
@@ -60,7 +50,6 @@ fn serialize_element(element: Element) -> String {
   case element {
     Item(_, _) -> serialize_item(element)
     InnerList(items, params) -> serialize_inner_list(items, params)
-    _ -> ""
   }
 }
 

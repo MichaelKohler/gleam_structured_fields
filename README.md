@@ -49,7 +49,5 @@ gleam test  # Run the tests
 
 ## Todo
 
-* Expose item parsing as pub function
-* Possible to tighten the return types of the parse functions?
 * Publish hexdocs doc
 * Implement https://github.com/httpwg/structured-field-tests/ tests

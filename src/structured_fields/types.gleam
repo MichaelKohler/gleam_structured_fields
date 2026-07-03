@@ -5,8 +5,6 @@ pub type Parameter {
 pub type Element {
   Item(value: BareItem, parameters: List(Parameter))
   InnerList(value: List(Element), parameters: List(Parameter))
-  FieldList(value: List(Element))
-  Dictionary(value: List(#(String, Element)))
 }
 
 pub type BareItem {

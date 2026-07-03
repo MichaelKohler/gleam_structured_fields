@@ -1,31 +1,28 @@
 import structured_fields/errors.{InvalidByteSequence}
 import structured_fields/parser
 import structured_fields/serializer
-import structured_fields/types.{ByteSequence, FieldList, Item}
+import structured_fields/types.{ByteSequence, Item}
 
 pub fn parse_byte_sequence_basic_test() {
   assert parser.parse_list(":aGVsbG8=:")
-    == Ok(FieldList([Item(ByteSequence(<<"hello">>), [])]))
+    == Ok([Item(ByteSequence(<<"hello">>), [])])
 }
 
 pub fn parse_byte_sequence_empty_test() {
-  assert parser.parse_list("::")
-    == Ok(FieldList([Item(ByteSequence(<<>>), [])]))
+  assert parser.parse_list("::") == Ok([Item(ByteSequence(<<>>), [])])
 }
 
 pub fn parse_byte_sequence_no_padding_test() {
   assert parser.parse_list(":aGVsbG8:")
-    == Ok(FieldList([Item(ByteSequence(<<"hello">>), [])]))
+    == Ok([Item(ByteSequence(<<"hello">>), [])])
 }
 
 pub fn parse_byte_sequence_list_test() {
   assert parser.parse_list(":aGVsbG8=:, :d29ybGQ=:")
-    == Ok(
-      FieldList([
-        Item(ByteSequence(<<"hello">>), []),
-        Item(ByteSequence(<<"world">>), []),
-      ]),
-    )
+    == Ok([
+      Item(ByteSequence(<<"hello">>), []),
+      Item(ByteSequence(<<"world">>), []),
+    ])
 }
 
 pub fn parse_byte_sequence_unterminated_test() {
@@ -46,11 +43,9 @@ pub fn serialize_byte_sequence_empty_test() {
 }
 
 pub fn serialize_byte_sequence_list_test() {
-  assert serializer.serialize_list(
-      FieldList([
-        Item(ByteSequence(<<"hello">>), []),
-        Item(ByteSequence(<<"world">>), []),
-      ]),
-    )
+  assert serializer.serialize_list([
+      Item(ByteSequence(<<"hello">>), []),
+      Item(ByteSequence(<<"world">>), []),
+    ])
     == ":aGVsbG8=:, :d29ybGQ=:"
 }
