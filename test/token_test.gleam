@@ -1,4 +1,5 @@
 import structured_fields/parser
+import structured_fields/serializer
 import structured_fields/types.{FieldList, Item, Token}
 
 pub fn parse_token_simple_test() {
@@ -22,4 +23,17 @@ pub fn parse_token_uppercase_test() {
 
 pub fn parse_token_asterisk_start_test() {
   assert parser.parse_list("*foo") == Ok(FieldList([Item(Token("*foo"), [])]))
+}
+
+pub fn serialize_token_simple_test() {
+  assert serializer.serialize_item(Item(Token("foo"), [])) == "foo"
+}
+
+pub fn serialize_token_with_slash_test() {
+  assert serializer.serialize_item(Item(Token("text/plain"), []))
+    == "text/plain"
+}
+
+pub fn serialize_token_asterisk_start_test() {
+  assert serializer.serialize_item(Item(Token("*foo"), [])) == "*foo"
 }

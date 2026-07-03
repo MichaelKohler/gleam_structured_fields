@@ -1,0 +1,171 @@
+import gleam/bit_array
+import gleam/float
+import gleam/int
+import gleam/list
+import gleam/string
+import structured_fields/types.{
+  type BareItem, type Element, type Parameter, BareString, Boolean, ByteSequence,
+  Decimal, Dictionary, DisplayString, FieldList, InnerList, Integer, Item,
+  Parameter, Token,
+}
+
+pub fn serialize_list(value: Element) -> String {
+  case value {
+    FieldList(members) ->
+      members
+      |> list.map(serialize_element)
+      |> string.join(", ")
+    _ -> ""
+  }
+}
+
+pub fn serialize_dictionary(value: Element) -> String {
+  case value {
+    Dictionary(pairs) ->
+      pairs
+      |> list.map(fn(pair) {
+        let #(key, element) = pair
+        case element {
+          Item(Boolean(True), params) -> key <> serialize_parameters(params)
+          _ -> key <> "=" <> serialize_element(element)
+        }
+      })
+      |> string.join(", ")
+    _ -> ""
+  }
+}
+
+pub fn serialize_item(value: Element) -> String {
+  case value {
+    Item(bare_item, params) ->
+      serialize_bare_item(bare_item) <> serialize_parameters(params)
+    InnerList(items, params) -> serialize_inner_list(items, params)
+    _ -> ""
+  }
+}
+
+pub fn serialize_parameters(params: List(Parameter)) -> String {
+  params
+  |> list.map(fn(param) {
+    let Parameter(name, value) = param
+    case value {
+      Boolean(True) -> ";" <> name
+      _ -> ";" <> name <> "=" <> serialize_bare_item(value)
+    }
+  })
+  |> string.join("")
+}
+
+fn serialize_element(element: Element) -> String {
+  case element {
+    Item(_, _) -> serialize_item(element)
+    InnerList(items, params) -> serialize_inner_list(items, params)
+    _ -> ""
+  }
+}
+
+fn serialize_inner_list(
+  items: List(Element),
+  params: List(Parameter),
+) -> String {
+  let members =
+    items
+    |> list.map(serialize_item)
+    |> string.join(" ")
+  "(" <> members <> ")" <> serialize_parameters(params)
+}
+
+fn serialize_bare_item(item: BareItem) -> String {
+  case item {
+    Integer(n) -> int.to_string(n)
+    Decimal(f) -> serialize_decimal(f)
+    BareString(s) -> serialize_string(s)
+    Token(t) -> t
+    ByteSequence(bits) -> ":" <> bit_array.base64_encode(bits, True) <> ":"
+    Boolean(True) -> "?1"
+    Boolean(False) -> "?0"
+    DisplayString(s) -> "%\"" <> serialize_display_string(s) <> "\""
+  }
+}
+
+fn serialize_decimal(f: Float) -> String {
+  let sign = case f <. 0.0 {
+    True -> "-"
+    False -> ""
+  }
+  let abs_f = float.absolute_value(f)
+  let total = float.round(abs_f *. 1000.0)
+  let int_part = total / 1000
+  let frac_part = total % 1000
+  let frac_str =
+    int.to_string(frac_part)
+    |> string.pad_start(3, "0")
+    |> trim_trailing_zeros
+  sign <> int.to_string(int_part) <> "." <> frac_str
+}
+
+fn trim_trailing_zeros(s: String) -> String {
+  case string.ends_with(s, "0") && string.length(s) > 1 {
+    True -> trim_trailing_zeros(string.drop_end(s, 1))
+    False -> s
+  }
+}
+
+fn serialize_string(s: String) -> String {
+  let escaped =
+    s
+    |> string.replace("\\", "\\\\")
+    |> string.replace("\"", "\\\"")
+  "\"" <> escaped <> "\""
+}
+
+fn serialize_display_string(s: String) -> String {
+  s
+  |> bit_array.from_string
+  |> encode_display_string_bytes
+}
+
+fn encode_display_string_bytes(bits: BitArray) -> String {
+  case bits {
+    <<>> -> ""
+    <<byte, rest:bytes>> -> {
+      let char_str = case
+        byte >= 0x20 && byte <= 0x7e && byte != 0x22 && byte != 0x25
+      {
+        True ->
+          bit_array.to_string(<<byte>>)
+          |> fn(r) {
+            case r {
+              Ok(s) -> s
+              Error(_) -> ""
+            }
+          }
+        False -> "%" <> to_hex_char(byte / 16) <> to_hex_char(byte % 16)
+      }
+      char_str <> encode_display_string_bytes(rest)
+    }
+    _ -> ""
+  }
+}
+
+fn to_hex_char(n: Int) -> String {
+  case n {
+    0 -> "0"
+    1 -> "1"
+    2 -> "2"
+    3 -> "3"
+    4 -> "4"
+    5 -> "5"
+    6 -> "6"
+    7 -> "7"
+    8 -> "8"
+    9 -> "9"
+    10 -> "A"
+    11 -> "B"
+    12 -> "C"
+    13 -> "D"
+    14 -> "E"
+    15 -> "F"
+    _ -> "?"
+  }
+}

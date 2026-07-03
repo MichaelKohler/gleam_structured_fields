@@ -1,5 +1,6 @@
 import structured_fields/errors.{UnclosedInnerList}
 import structured_fields/parser
+import structured_fields/serializer
 import structured_fields/types.{
   Boolean, FieldList, InnerList, Integer, Item, Parameter, Token,
 }
@@ -66,4 +67,39 @@ pub fn parse_inner_list_in_list_test() {
 
 pub fn parse_inner_list_unclosed_test() {
   assert parser.parse_list("(1 2") == Error(UnclosedInnerList(4))
+}
+
+pub fn serialize_inner_list_empty_test() {
+  assert serializer.serialize_item(InnerList([], [])) == "()"
+}
+
+pub fn serialize_inner_list_single_item_test() {
+  assert serializer.serialize_item(InnerList([Item(Integer(1), [])], []))
+    == "(1)"
+}
+
+pub fn serialize_inner_list_multiple_items_test() {
+  assert serializer.serialize_item(
+    InnerList(
+      [Item(Integer(1), []), Item(Integer(2), []), Item(Integer(3), [])],
+      [],
+    ),
+  )
+    == "(1 2 3)"
+}
+
+pub fn serialize_inner_list_with_parameters_test() {
+  assert serializer.serialize_item(
+    InnerList([Item(Integer(1), []), Item(Integer(2), [])], [
+      Parameter("level", Integer(5)),
+    ]),
+  )
+    == "(1 2);level=5"
+}
+
+pub fn serialize_inner_list_item_with_parameters_test() {
+  assert serializer.serialize_item(
+    InnerList([Item(Token("foo"), [Parameter("flag", Boolean(True))])], []),
+  )
+    == "(foo;flag)"
 }

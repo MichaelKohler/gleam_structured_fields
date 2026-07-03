@@ -1,5 +1,6 @@
 import structured_fields/errors.{InvalidDisplayString}
 import structured_fields/parser
+import structured_fields/serializer
 import structured_fields/types.{DisplayString, FieldList, Item}
 
 pub fn parse_display_string_ascii_test() {
@@ -32,4 +33,19 @@ pub fn parse_display_string_unterminated_test() {
 
 pub fn parse_display_string_invalid_hex_test() {
   assert parser.parse_list("%\"%GG\"") == Error(InvalidDisplayString(2))
+}
+
+pub fn serialize_display_string_ascii_test() {
+  assert serializer.serialize_item(Item(DisplayString("hello"), []))
+    == "%\"hello\""
+}
+
+pub fn serialize_display_string_multibyte_test() {
+  assert serializer.serialize_item(Item(DisplayString("café"), []))
+    == "%\"caf%C3%A9\""
+}
+
+pub fn serialize_display_string_percent_encoded_test() {
+  assert serializer.serialize_item(Item(DisplayString("100%"), []))
+    == "%\"100%25\""
 }
