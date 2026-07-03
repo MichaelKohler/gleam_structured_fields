@@ -371,7 +371,7 @@ fn with_dedup_indices(cases: List(TestCase)) -> List(#(Int, TestCase)) {
 
 fn file_header() -> String {
   "// Auto-generated from https://github.com/httpwg/structured-field-tests
-// Do not edit manually — run: gleam run --directory scripts -- <test-repo-path>
+// Do not edit manually — run the test case generation script
 
 import gleam/result
 import structured_fields/parser
