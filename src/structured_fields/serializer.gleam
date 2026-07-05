@@ -2,6 +2,7 @@ import gleam/bit_array
 import gleam/float
 import gleam/int
 import gleam/list
+import gleam/result
 import gleam/string
 import structured_fields/types.{
   type BareItem, type Element, type Parameter, BareString, Boolean, ByteSequence,
@@ -161,25 +162,27 @@ fn serialize_display_string(s: String) -> String {
 }
 
 fn encode_display_string_bytes(bits: BitArray) -> String {
+  do_encode_display_string_bytes(bits, [])
+  |> list.reverse
+  |> string.concat
+}
+
+fn do_encode_display_string_bytes(
+  bits: BitArray,
+  acc: List(String),
+) -> List(String) {
   case bits {
-    <<>> -> ""
+    <<>> -> acc
     <<byte, rest:bytes>> -> {
-      let char_str = case
+      let chunk = case
         byte >= 0x20 && byte <= 0x7e && byte != 0x22 && byte != 0x25
       {
-        True ->
-          bit_array.to_string(<<byte>>)
-          |> fn(r) {
-            case r {
-              Ok(s) -> s
-              Error(_) -> ""
-            }
-          }
+        True -> bit_array.to_string(<<byte>>) |> result.unwrap("")
         False -> "%" <> to_hex_char(byte / 16) <> to_hex_char(byte % 16)
       }
-      char_str <> encode_display_string_bytes(rest)
+      do_encode_display_string_bytes(rest, [chunk, ..acc])
     }
-    _ -> ""
+    _ -> acc
   }
 }
 
