@@ -38,7 +38,11 @@ type IntegerOrDecimal {
 /// ```
 pub fn parse_list(value: String) -> Result(List(Element), ParseError) {
   use <- bool.guard(!is_ascii(value), Error(NonAsciiInput))
-  use #(members, _) <- result.try(parse_list_internal(value, [], skip_sp(value, 0)))
+  use #(members, _) <- result.try(parse_list_internal(
+    value,
+    [],
+    skip_sp(value, 0),
+  ))
   Ok(members)
 }
 
@@ -68,7 +72,9 @@ pub fn parse_dictionary(
   value: String,
 ) -> Result(List(#(String, Element)), ParseError) {
   use <- bool.guard(!is_ascii(value), Error(NonAsciiInput))
-  use #(dict, _) <- result.try(parse_dictionary_internal(value, skip_sp(value, 0), []))
+  use #(dict, _) <- result.try(
+    parse_dictionary_internal(value, skip_sp(value, 0), []),
+  )
   Ok(dict)
 }
 
@@ -83,11 +89,9 @@ fn parse_dictionary_internal(
   case is_end {
     True -> Ok(#(accumulated, current_position))
     False -> {
-      use #(key, pos) <- result.try(parse_parameter_key(
-        value,
-        current_position,
-        [],
-      ))
+      use #(key, pos) <- result.try(
+        parse_parameter_key(value, current_position, []),
+      )
       use #(member_value, pos) <- result.try(parse_dictionary_member_value(
         value,
         pos,
@@ -272,9 +276,12 @@ fn parse_bare_item(
       }
     }
     _ if is_digit -> {
-      use #(v, pos) <- result.try(
-        parse_integer_or_decimal(value, current_position, "", 1),
-      )
+      use #(v, pos) <- result.try(parse_integer_or_decimal(
+        value,
+        current_position,
+        "",
+        1,
+      ))
       case v {
         IsInteger(n) -> Ok(#(Integer(n), pos))
         IsDecimal(f) -> Ok(#(Decimal(f), pos))
@@ -337,10 +344,12 @@ fn parse_parameter_key(
 
   case next_char {
     "" if is_start -> Error(InvalidParameterKey(current_position))
-    "" ->
-      Ok(#(string.concat(list.reverse(accumulated)), current_position))
+    "" -> Ok(#(string.concat(list.reverse(accumulated)), current_position))
     _ if is_valid ->
-      parse_parameter_key(value, current_position + 1, [next_char, ..accumulated])
+      parse_parameter_key(value, current_position + 1, [
+        next_char,
+        ..accumulated
+      ])
     _ if is_start -> Error(InvalidParameterKey(current_position))
     _ -> Ok(#(string.concat(list.reverse(accumulated)), current_position))
   }
@@ -364,10 +373,8 @@ fn parse_string(
     "\\" -> {
       let next_char = string.slice(value, current_position + 1, 1)
       case next_char {
-        "\\" ->
-          parse_string(value, current_position + 2, ["\\", ..accumulated])
-        "\"" ->
-          parse_string(value, current_position + 2, ["\"", ..accumulated])
+        "\\" -> parse_string(value, current_position + 2, ["\\", ..accumulated])
+        "\"" -> parse_string(value, current_position + 2, ["\"", ..accumulated])
         _ -> Error(InvalidStringInput(current_position))
       }
     }
@@ -432,7 +439,10 @@ fn parse_byte_sequence(
       }
     }
     _ ->
-      parse_byte_sequence(value, current_position + 1, [next_char, ..accumulated])
+      parse_byte_sequence(value, current_position + 1, [
+        next_char,
+        ..accumulated
+      ])
   }
 }
 
@@ -491,9 +501,12 @@ fn parse_date(
   value: String,
   current_position: Int,
 ) -> Result(#(Int, Int), ParseError) {
-  use #(v, new_position) <- result.try(
-    parse_integer_or_decimal(value, current_position, "", 1),
-  )
+  use #(v, new_position) <- result.try(parse_integer_or_decimal(
+    value,
+    current_position,
+    "",
+    1,
+  ))
   case v {
     IsInteger(n) -> Ok(#(n, new_position))
     IsDecimal(_) -> Error(WrongDateFormat(current_position))
