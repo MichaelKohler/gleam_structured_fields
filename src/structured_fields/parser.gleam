@@ -1,4 +1,5 @@
 import gleam/bit_array
+import gleam/bool
 import gleam/float
 import gleam/int
 import gleam/list
@@ -36,14 +37,13 @@ type IntegerOrDecimal {
 /// // ])
 /// ```
 pub fn parse_list(value: String) -> Result(List(Element), ParseError) {
-  case is_ascii(value) {
-    False -> Error(NonAsciiInput)
-    True ->
-      case parse_list_internal(value, [], skip_sp(value, 0)) {
-        Ok(#(members, _)) -> Ok(members)
-        Error(e) -> Error(e)
-      }
-  }
+  use <- bool.guard(!is_ascii(value), Error(NonAsciiInput))
+  use #(members, _) <- result.try(parse_list_internal(
+    value,
+    [],
+    skip_sp(value, 0),
+  ))
+  Ok(members)
 }
 
 fn is_ascii(value: String) -> Bool {
@@ -71,14 +71,11 @@ fn is_ascii(value: String) -> Bool {
 pub fn parse_dictionary(
   value: String,
 ) -> Result(List(#(String, Element)), ParseError) {
-  case is_ascii(value) {
-    False -> Error(NonAsciiInput)
-    True ->
-      case parse_dictionary_internal(value, skip_sp(value, 0), []) {
-        Ok(#(dict, _)) -> Ok(dict)
-        Error(e) -> Error(e)
-      }
-  }
+  use <- bool.guard(!is_ascii(value), Error(NonAsciiInput))
+  use #(dict, _) <- result.try(
+    parse_dictionary_internal(value, skip_sp(value, 0), []),
+  )
+  Ok(dict)
 }
 
 fn parse_dictionary_internal(
@@ -92,16 +89,14 @@ fn parse_dictionary_internal(
   case is_end {
     True -> Ok(#(accumulated, current_position))
     False -> {
-      use #(key, pos) <- result.try(parse_parameter_key(
-        value,
-        current_position,
-        "",
-      ))
+      use #(key, pos) <- result.try(
+        parse_parameter_key(value, current_position, []),
+      )
       use #(member_value, pos) <- result.try(parse_dictionary_member_value(
         value,
         pos,
       ))
-      let accumulated = update_or_append_dict(accumulated, key, member_value)
+      let accumulated = list.key_set(accumulated, key, member_value)
 
       let new_character_position = skip_whitespace(value, pos)
       case string.slice(value, new_character_position, 1) {
@@ -143,35 +138,27 @@ fn parse_list_internal(
   let is_end = current_position >= end
 
   case is_end {
-    True -> Ok(#(members, current_position))
+    True -> Ok(#(list.reverse(members), current_position))
     False -> {
       use #(parsed_member, new_position) <- result.try(parse_item_or_inner_list(
         value,
         current_position,
       ))
-      let members = list.append(members, [parsed_member])
+      let members = [parsed_member, ..members]
 
       let new_character_position = skip_whitespace(value, new_position)
-      let next_char = string.slice(value, new_character_position, 1)
-
-      let result = case next_char {
+      case string.slice(value, new_character_position, 1) {
         "," -> {
           let skipped_position =
             skip_whitespace(value, new_character_position + 1)
-          let has_trailing_comma = skipped_position >= end
-
-          let result = case has_trailing_comma {
+          case skipped_position >= end {
             True -> Error(TrailingCommaError(new_character_position))
             False -> parse_list_internal(value, members, skipped_position)
           }
-
-          result
         }
-        "" -> Ok(#(members, new_character_position))
+        "" -> Ok(#(list.reverse(members), new_character_position))
         _ -> Error(CommaExpectedError(new_character_position))
       }
-
-      result
     }
   }
 }
@@ -180,14 +167,10 @@ fn parse_item_or_inner_list(
   value: String,
   current_position: Int,
 ) -> Result(#(Element, Int), ParseError) {
-  let next_char = string.slice(value, current_position, 1)
-
-  let result = case next_char {
+  case string.slice(value, current_position, 1) {
     "(" -> parse_inner_list(value, current_position + 1, [])
     _ -> parse_item_internal(value, current_position)
   }
-
-  result
 }
 
 fn parse_inner_list(
@@ -201,15 +184,14 @@ fn parse_inner_list(
   case next_char {
     ")" -> {
       use #(params, pos) <- result.try(parse_parameters(value, pos + 1, []))
-      Ok(#(InnerList(value: accumulated, parameters: params), pos))
+      Ok(#(InnerList(value: list.reverse(accumulated), parameters: params), pos))
     }
     "" -> Error(UnclosedInnerList(pos))
     _ -> {
       use #(item, pos) <- result.try(parse_item_internal(value, pos))
       let after = string.slice(value, pos, 1)
       case after {
-        " " | ")" ->
-          parse_inner_list(value, pos, list.append(accumulated, [item]))
+        " " | ")" -> parse_inner_list(value, pos, [item, ..accumulated])
         "" -> Error(UnclosedInnerList(pos))
         _ -> Error(UnrecognizedItemType(pos))
       }
@@ -252,11 +234,7 @@ fn parse_item_internal(
   use #(parameters, new_position) <- result.try(
     parse_parameters(value, new_position, []),
   )
-
-  let item = Item(value: bare_item, parameters: parameters)
-  let result = #(item, new_position)
-
-  Ok(result)
+  Ok(#(Item(value: bare_item, parameters: parameters), new_position))
 }
 
 fn parse_bare_item(
@@ -268,48 +246,51 @@ fn parse_bare_item(
   let is_token = should_parse_as_token(next_char)
 
   case next_char {
-    "\"" ->
-      case parse_string(value, current_position + 1, "") {
-        Ok(#(s, pos)) -> Ok(#(BareString(s), pos))
-        Error(e) -> Error(e)
-      }
-    "?" ->
-      case parse_boolean(value, current_position + 1) {
-        Ok(#(b, pos)) -> Ok(#(Boolean(b), pos))
-        Error(e) -> Error(e)
-      }
-    "@" ->
-      case parse_date(value, current_position + 1) {
-        Ok(#(n, pos)) -> Ok(#(Integer(n), pos))
-        Error(e) -> Error(e)
-      }
-    ":" ->
-      case parse_byte_sequence(value, current_position + 1, "") {
-        Ok(#(bits, pos)) -> Ok(#(ByteSequence(bits), pos))
-        Error(e) -> Error(e)
-      }
+    "\"" -> {
+      use #(s, pos) <- result.try(parse_string(value, current_position + 1, []))
+      Ok(#(BareString(s), pos))
+    }
+    "?" -> {
+      use #(b, pos) <- result.try(parse_boolean(value, current_position + 1))
+      Ok(#(Boolean(b), pos))
+    }
+    "@" -> {
+      use #(n, pos) <- result.try(parse_date(value, current_position + 1))
+      Ok(#(Integer(n), pos))
+    }
+    ":" -> {
+      use #(bits, pos) <- result.try(
+        parse_byte_sequence(value, current_position + 1, []),
+      )
+      Ok(#(ByteSequence(bits), pos))
+    }
     "%" -> {
-      let next = string.slice(value, current_position + 1, 1)
-      case next {
-        "\"" ->
-          case parse_display_string(value, current_position + 2, <<>>) {
-            Ok(#(s, pos)) -> Ok(#(DisplayString(s), pos))
-            Error(e) -> Error(e)
-          }
+      case string.slice(value, current_position + 1, 1) {
+        "\"" -> {
+          use #(s, pos) <- result.try(
+            parse_display_string(value, current_position + 2, <<>>),
+          )
+          Ok(#(DisplayString(s), pos))
+        }
         _ -> Error(InvalidDisplayString(current_position))
       }
     }
-    _ if is_digit ->
-      case parse_integer_or_decimal(value, current_position, "", 1) {
-        Ok(#(IsInteger(n), pos)) -> Ok(#(Integer(n), pos))
-        Ok(#(IsDecimal(f), pos)) -> Ok(#(Decimal(f), pos))
-        Error(e) -> Error(e)
+    _ if is_digit -> {
+      use #(v, pos) <- result.try(parse_integer_or_decimal(
+        value,
+        current_position,
+        "",
+        1,
+      ))
+      case v {
+        IsInteger(n) -> Ok(#(Integer(n), pos))
+        IsDecimal(f) -> Ok(#(Decimal(f), pos))
       }
-    _ if is_token ->
-      case parse_token(value, current_position, "") {
-        Ok(#(s, pos)) -> Ok(#(Token(s), pos))
-        Error(e) -> Error(e)
-      }
+    }
+    _ if is_token -> {
+      use #(s, pos) <- result.try(parse_token(value, current_position, []))
+      Ok(#(Token(s), pos))
+    }
     _ -> Error(UnrecognizedItemType(current_position))
   }
 }
@@ -324,7 +305,7 @@ fn parse_parameters(
   case next_char {
     ";" -> {
       let pos = skip_sp(value, current_position + 1)
-      use #(key, pos) <- result.try(parse_parameter_key(value, pos, ""))
+      use #(key, pos) <- result.try(parse_parameter_key(value, pos, []))
       case string.slice(value, pos, 1) {
         "=" -> {
           use #(param_value, pos) <- result.try(parse_bare_item(value, pos + 1))
@@ -352,10 +333,10 @@ fn parse_parameters(
 fn parse_parameter_key(
   value: String,
   current_position: Int,
-  accumulated: String,
+  accumulated: List(String),
 ) -> Result(#(String, Int), ParseError) {
   let next_char = string.slice(value, current_position, 1)
-  let is_start = accumulated == ""
+  let is_start = list.is_empty(accumulated)
   let is_valid = case is_start {
     True -> is_parameter_key_start_char(next_char)
     False -> is_parameter_key_char(next_char)
@@ -363,69 +344,62 @@ fn parse_parameter_key(
 
   case next_char {
     "" if is_start -> Error(InvalidParameterKey(current_position))
-    "" -> Ok(#(accumulated, current_position))
+    "" -> Ok(#(string.concat(list.reverse(accumulated)), current_position))
     _ if is_valid ->
-      parse_parameter_key(value, current_position + 1, accumulated <> next_char)
+      parse_parameter_key(value, current_position + 1, [
+        next_char,
+        ..accumulated
+      ])
     _ if is_start -> Error(InvalidParameterKey(current_position))
-    _ -> Ok(#(accumulated, current_position))
+    _ -> Ok(#(string.concat(list.reverse(accumulated)), current_position))
   }
 }
 
 fn parse_string(
   value: String,
   current_position: Int,
-  current_string: String,
+  accumulated: List(String),
 ) -> Result(#(String, Int), ParseError) {
   let next_char = string.slice(value, current_position, 1)
-  let code_point = next_char |> string.to_utf_codepoints |> list.first
-  let code = case code_point {
-    Ok(n) -> string.utf_codepoint_to_int(n)
-    Error(_) -> 0
-  }
+  let code =
+    next_char
+    |> string.to_utf_codepoints
+    |> list.first
+    |> result.map(string.utf_codepoint_to_int)
+    |> result.unwrap(0)
   let is_invalid_code_point = code < 32 || code >= 127
 
   case next_char {
     "\\" -> {
       let next_char = string.slice(value, current_position + 1, 1)
-
       case next_char {
-        "\\" -> {
-          let new_string = string.append(current_string, "\\")
-          parse_string(value, current_position + 2, new_string)
-        }
-        "\"" -> {
-          let new_string = string.append(current_string, "\"")
-          parse_string(value, current_position + 2, new_string)
-        }
+        "\\" -> parse_string(value, current_position + 2, ["\\", ..accumulated])
+        "\"" -> parse_string(value, current_position + 2, ["\"", ..accumulated])
         _ -> Error(InvalidStringInput(current_position))
       }
     }
-    "\"" -> Ok(#(current_string, current_position + 1))
+    "\"" ->
+      Ok(#(string.concat(list.reverse(accumulated)), current_position + 1))
     "" -> Error(InvalidStringInput(current_position))
     // Reached end without closing quote
     _ if is_invalid_code_point -> Error(InvalidStringInput(current_position))
-    _ -> {
-      let new_string = string.append(current_string, next_char)
-      parse_string(value, current_position + 1, new_string)
-    }
+    _ -> parse_string(value, current_position + 1, [next_char, ..accumulated])
   }
 }
 
 fn parse_token(
   value: String,
   current_position: Int,
-  current_string: String,
+  accumulated: List(String),
 ) -> Result(#(String, Int), ParseError) {
   let next_char = string.slice(value, current_position, 1)
   let is_still_token = is_token_char(next_char)
 
   case next_char {
-    "" -> Ok(#(current_string, current_position))
-    _ if is_still_token -> {
-      let new_string = string.append(current_string, next_char)
-      parse_token(value, current_position + 1, new_string)
-    }
-    _ -> Ok(#(current_string, current_position))
+    "" -> Ok(#(string.concat(list.reverse(accumulated)), current_position))
+    _ if is_still_token ->
+      parse_token(value, current_position + 1, [next_char, ..accumulated])
+    _ -> Ok(#(string.concat(list.reverse(accumulated)), current_position))
   }
 }
 
@@ -445,27 +419,30 @@ fn parse_boolean(
 fn parse_byte_sequence(
   value: String,
   current_position: Int,
-  accumulated: String,
+  accumulated: List(String),
 ) -> Result(#(BitArray, Int), ParseError) {
   let next_char = string.slice(value, current_position, 1)
 
   case next_char {
     "" -> Error(InvalidByteSequence(current_position))
     ":" -> {
-      let all_valid =
-        string.to_graphemes(accumulated)
-        |> list.all(is_base64_char)
+      let all_valid = list.all(accumulated, is_base64_char)
       case all_valid {
         False -> Error(InvalidByteSequence(current_position))
         True ->
-          case bit_array.base64_decode(accumulated) {
+          case
+            bit_array.base64_decode(string.concat(list.reverse(accumulated)))
+          {
             Ok(bits) -> Ok(#(bits, current_position + 1))
             Error(_) -> Error(InvalidByteSequence(current_position))
           }
       }
     }
     _ ->
-      parse_byte_sequence(value, current_position + 1, accumulated <> next_char)
+      parse_byte_sequence(value, current_position + 1, [
+        next_char,
+        ..accumulated
+      ])
   }
 }
 
@@ -501,11 +478,12 @@ fn parse_display_string(
       }
     }
     _ -> {
-      let code_point = next_char |> string.to_utf_codepoints |> list.first
-      let code = case code_point {
-        Ok(n) -> string.utf_codepoint_to_int(n)
-        Error(_) -> 0
-      }
+      let code =
+        next_char
+        |> string.to_utf_codepoints
+        |> list.first
+        |> result.map(string.utf_codepoint_to_int)
+        |> result.unwrap(0)
       case code >= 0x20 && code <= 0x7e {
         False -> Error(InvalidDisplayString(current_position))
         True ->
@@ -523,10 +501,15 @@ fn parse_date(
   value: String,
   current_position: Int,
 ) -> Result(#(Int, Int), ParseError) {
-  case parse_integer_or_decimal(value, current_position, "", 1) {
-    Ok(#(IsInteger(n), new_position)) -> Ok(#(n, new_position))
-    Ok(#(IsDecimal(_), _)) -> Error(WrongDateFormat(current_position))
-    Error(e) -> Error(e)
+  use #(v, new_position) <- result.try(parse_integer_or_decimal(
+    value,
+    current_position,
+    "",
+    1,
+  ))
+  case v {
+    IsInteger(n) -> Ok(#(n, new_position))
+    IsDecimal(_) -> Error(WrongDateFormat(current_position))
   }
 }
 
@@ -542,37 +525,28 @@ fn parse_integer_or_decimal(
   case next_char {
     "" ->
       finalize_integer_or_decimal_parsing(input_number, sign, current_position)
-    "-" if input_number == "" && sign == 1 -> {
-      let sign = -1
-      let new_position = current_position + 1
-      parse_integer_or_decimal(value, new_position, input_number, sign)
-    }
+    "-" if input_number == "" && sign == 1 ->
+      parse_integer_or_decimal(value, current_position + 1, input_number, -1)
     "-" ->
       finalize_integer_or_decimal_parsing(input_number, sign, current_position)
-    _ if digit -> {
-      let new_input_number = string.append(input_number, next_char)
+    _ if digit ->
       parse_integer_or_decimal(
         value,
         current_position + 1,
-        new_input_number,
+        input_number <> next_char,
         sign,
       )
-    }
-    "." -> {
-      let already_contains_period = string.contains(input_number, ".")
-      case already_contains_period {
+    "." ->
+      case string.contains(input_number, ".") {
         True -> Error(WrongDecimalOrIntegerInput(current_position))
-        False -> {
-          let new_input_number = string.append(input_number, next_char)
+        False ->
           parse_integer_or_decimal(
             value,
             current_position + 1,
-            new_input_number,
+            input_number <> next_char,
             sign,
           )
-        }
       }
-    }
     _ ->
       finalize_integer_or_decimal_parsing(input_number, sign, current_position)
   }
@@ -623,15 +597,11 @@ fn parse_decimal_result(
   sign: Int,
   current_position: Int,
 ) -> Result(#(IntegerOrDecimal, Int), ParseError) {
-  let number = float.parse(input_number)
-
-  case number {
-    Error(_) -> Error(WrongDecimalOrIntegerInput(current_position))
-    Ok(n) -> {
-      let signed_number = sign |> int.to_float |> float.multiply(n)
-      Ok(#(IsDecimal(signed_number), current_position))
-    }
-  }
+  use n <- result.try(
+    float.parse(input_number)
+    |> result.map_error(fn(_) { WrongDecimalOrIntegerInput(current_position) }),
+  )
+  Ok(#(IsDecimal(sign |> int.to_float |> float.multiply(n)), current_position))
 }
 
 fn parse_integer_result(
@@ -639,15 +609,11 @@ fn parse_integer_result(
   sign: Int,
   current_position: Int,
 ) -> Result(#(IntegerOrDecimal, Int), ParseError) {
-  let number = int.parse(input_number)
-
-  case number {
-    Error(_) -> Error(WrongDecimalOrIntegerInput(current_position))
-    Ok(n) -> {
-      let signed_number = sign * n
-      Ok(#(IsInteger(signed_number), current_position))
-    }
-  }
+  use n <- result.try(
+    int.parse(input_number)
+    |> result.map_error(fn(_) { WrongDecimalOrIntegerInput(current_position) }),
+  )
+  Ok(#(IsInteger(sign * n), current_position))
 }
 
 fn skip_whitespace(value: String, current_position: Int) -> Int {
@@ -704,35 +670,13 @@ fn is_base64_char(char: String) -> Bool {
   string.contains(base64_chars, char)
 }
 
-fn update_or_append_dict(
-  accumulated: List(#(String, Element)),
-  key: String,
-  value: Element,
-) -> List(#(String, Element)) {
-  case list.any(accumulated, fn(entry) { entry.0 == key }) {
-    True ->
-      list.map(accumulated, fn(entry) {
-        case entry.0 == key {
-          True -> #(key, value)
-          False -> entry
-        }
-      })
-    False -> list.append(accumulated, [#(key, value)])
-  }
-}
-
 fn update_or_append_param(
   accumulated: List(Parameter),
   param: Parameter,
 ) -> List(Parameter) {
-  case list.any(accumulated, fn(p) { p.name == param.name }) {
-    True ->
-      list.map(accumulated, fn(p) {
-        case p.name == param.name {
-          True -> param
-          False -> p
-        }
-      })
-    False -> list.append(accumulated, [param])
+  case accumulated {
+    [] -> [param]
+    [p, ..rest] if p.name == param.name -> [param, ..rest]
+    [p, ..rest] -> [p, ..update_or_append_param(rest, param)]
   }
 }
