@@ -1,5 +1,5 @@
 name = "structured_fields"
-version = "1.0.0"
+version = "1.0.1"
 
 description = "Parser and serialization implementation of Structured Field Values for HTTP (RFC 9651, backwards compatible to RFC 8941)"
 licences = ["MIT"]
