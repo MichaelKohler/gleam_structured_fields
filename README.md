@@ -32,7 +32,7 @@ pub fn main() {
 }
 ```
 
-or run:
+or, from a checkout of this repository, run the example from `test/example.gleam`:
 
 ```sh
 gleam run -m example
@@ -43,8 +43,7 @@ Further documentation can be found at <https://hexdocs.pm/structured_fields>.
 ## Development
 
 ```sh
-gleam run   # Run the project
-gleam test  # Run the tests
+gleam test
 ```
 
 ### Running the official httpwg test suite
